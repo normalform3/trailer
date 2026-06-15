@@ -1,0 +1,19 @@
+[api_keys]
+# 高德：地点解析、周边住宿/交通/餐饮/补给 POI。
+amap_api_key = ""
+
+# OpenRouteService：没有 KML 时的徒步路线规划兜底。
+ors_api_key = ""
+
+# 百炼 / DashScope：自然语言攻略摘要、建议生成。
+dashscope_api_key = ""
+
+# 兼容旧变量名；一般留空即可，优先使用 dashscope_api_key。
+bailian_api_key = ""
+
+[bailian]
+model = "qwen3.7-plus"
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+
+[dashscope]
+base_http_api_url = "https://dashscope.aliyuncs.com/api/v1"

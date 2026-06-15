@@ -1,0 +1,1 @@
+"""Hiking guide agent application."""
