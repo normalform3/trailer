@@ -11,6 +11,10 @@ dashscope_api_key = ""
 # 兼容旧变量名；一般留空即可，优先使用 dashscope_api_key。
 bailian_api_key = ""
 
+# Amadeus：机票报价查询。未配置时交通方案会保留机票查询占位提示。
+amadeus_client_id = ""
+amadeus_client_secret = ""
+
 [bailian]
 model = "qwen3.7-plus"
 base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"

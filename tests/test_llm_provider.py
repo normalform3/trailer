@@ -1,7 +1,7 @@
 import sys
 import types
 
-from app.models import Coordinate, HikingGuideRequest, RouteAnalysis, RouteCandidate, RouteGeometry
+from app.models import Coordinate, GuideReferenceItem, GuideReferenceResearch, HikingGuideRequest, RouteAnalysis, RouteCandidate, RouteGeometry
 from app.models import RouteSource
 from app.providers.llm import BailianQwenGuideProvider, TemplateGuideProvider
 
@@ -150,6 +150,120 @@ def test_bailian_provider_parses_enhanced_response(monkeypatch) -> None:
     assert draft.gear_list.categories[0].category == "基础装备"
     assert draft.safety_guide is not None
     assert draft.safety_guide.general_warnings == ["注意天气变化"]
+
+
+def test_bailian_provider_parses_tool_plan_response(monkeypatch) -> None:
+    class FakeMultiModalConversation:
+        @staticmethod
+        def call(api_key, model, messages):
+            response_json = {
+                "tool_plan": {
+                    "query_weather": True,
+                    "query_lodging": True,
+                    "query_food": False,
+                    "query_supply": True,
+                    "query_transport": True,
+                    "compose_with_llm": True,
+                    "rationale": ["用户需要完整攻略"],
+                },
+                "clarifying_questions": ["补充返回日期"],
+                "validation_notes": ["票价需实时核对"],
+                "priority_notes": ["天气优先"],
+            }
+            import json
+            return types.SimpleNamespace(
+                status_code=200,
+                output=types.SimpleNamespace(
+                    choices=[
+                        types.SimpleNamespace(
+                            message=types.SimpleNamespace(
+                                content=[{"text": json.dumps(response_json, ensure_ascii=False)}]
+                            )
+                        )
+                    ]
+                ),
+            )
+
+    fake_dashscope = types.SimpleNamespace(
+        base_http_api_url=None,
+        MultiModalConversation=FakeMultiModalConversation,
+    )
+    monkeypatch.setitem(sys.modules, "dashscope", fake_dashscope)
+
+    provider = BailianQwenGuideProvider(api_key="test-key")
+    candidate = _make_candidate()
+
+    decision = provider.plan_tools(
+        HikingGuideRequest(destination="武功山", start_city="上海"),
+        [candidate.route],
+        warnings=[],
+        data_sources=[],
+    )
+
+    assert decision.tool_plan.query_weather is True
+    assert decision.tool_plan.query_food is False
+    assert decision.tool_plan.query_transport is True
+    assert decision.tool_plan.rationale == ["用户需要完整攻略"]
+    assert decision.clarifying_questions == ["补充返回日期"]
+    assert decision.validation_notes == ["票价需实时核对"]
+
+
+def test_bailian_provider_generates_reference_research_without_touching_main_prompt(monkeypatch) -> None:
+    calls = {}
+
+    class FakeMultiModalConversation:
+        @staticmethod
+        def call(api_key, model, messages):
+            calls["messages"] = messages
+            response_json = {
+                "supplemental_summary": "参考攻略提示山顶住宿紧张，仅作补充。",
+                "itinerary_suggestions": ["可参考龙山村上山节奏"],
+                "lodging_supply_transport_notes": ["住宿需提前核验"],
+                "risk_notes": ["雨天路滑"],
+                "verification_items": ["核验山顶住宿是否营业"],
+            }
+            import json
+            return types.SimpleNamespace(
+                status_code=200,
+                output=types.SimpleNamespace(
+                    choices=[
+                        types.SimpleNamespace(
+                            message=types.SimpleNamespace(
+                                content=[{"text": json.dumps(response_json, ensure_ascii=False)}]
+                            )
+                        )
+                    ]
+                ),
+            )
+
+    fake_dashscope = types.SimpleNamespace(
+        base_http_api_url=None,
+        MultiModalConversation=FakeMultiModalConversation,
+    )
+    monkeypatch.setitem(sys.modules, "dashscope", fake_dashscope)
+
+    provider = BailianQwenGuideProvider(api_key="test-key")
+    result = provider.generate_reference_research(
+        HikingGuideRequest(destination="武功山"),
+        [_make_candidate()],
+        "主攻略摘要",
+        GuideReferenceResearch(
+            items=[
+                GuideReferenceItem(
+                    title="用户攻略",
+                    summary="龙山村上山，住宿紧张。",
+                    source="user-notes",
+                )
+            ]
+        ),
+    )
+
+    prompt = calls["messages"][0]["content"][0]["text"]
+    assert "参考攻略补充规划器" in prompt
+    assert "不得覆盖主攻略结论" in prompt
+    assert result.items[0].title == "用户攻略"
+    assert result.supplemental_summary == "参考攻略提示山顶住宿紧张，仅作补充。"
+    assert result.verification_items == ["核验山顶住宿是否营业"]
 
 
 def test_template_provider_generates_itinerary_and_gear() -> None:

@@ -6,6 +6,7 @@ import httpx
 
 from app.config import get_settings
 from app.models import Coordinate, HikingGuideRequest, RouteCandidate, RouteGeometry, TravelInfoItem, TravelResearch
+from app.services.coordinates import wgs84_to_gcj02
 from app.providers.weather import WeatherSnapshot
 
 
@@ -15,6 +16,9 @@ class TravelResearchProvider(Protocol):
         request: HikingGuideRequest,
         candidates: list[RouteCandidate],
         weather_snapshots: list[WeatherSnapshot | None],
+        include_lodging: bool = True,
+        include_food: bool = True,
+        include_supply: bool = True,
     ) -> TravelResearch:
         raise NotImplementedError
 
@@ -34,13 +38,30 @@ class DefaultTravelResearchProvider:
         request: HikingGuideRequest,
         candidates: list[RouteCandidate],
         weather_snapshots: list[WeatherSnapshot | None],
+        include_lodging: bool = True,
+        include_food: bool = True,
+        include_supply: bool = True,
     ) -> TravelResearch:
-        fallback = self.fallback_provider.collect(request, candidates, weather_snapshots)
+        fallback = self.fallback_provider.collect(
+            request,
+            candidates,
+            weather_snapshots,
+            include_lodging=include_lodging,
+            include_food=include_food,
+            include_supply=include_supply,
+        )
         if not self.poi_provider or not candidates:
             return fallback
 
         try:
-            poi_research = self.poi_provider.collect(request, candidates, weather_snapshots)
+            poi_research = self.poi_provider.collect(
+                request,
+                candidates,
+                weather_snapshots,
+                include_lodging=include_lodging,
+                include_food=include_food,
+                include_supply=include_supply,
+            )
         except Exception as exc:  # noqa: BLE001 - POI failure should not block guide generation.
             fallback.warnings.append(f"高德 POI 查询暂不可用，已使用静态信息兜底：{exc}")
             return fallback
@@ -62,11 +83,20 @@ class StaticTravelResearchProvider:
         request: HikingGuideRequest,
         candidates: list[RouteCandidate],
         weather_snapshots: list[WeatherSnapshot | None],
+        include_lodging: bool = True,
+        include_food: bool = True,
+        include_supply: bool = True,
     ) -> TravelResearch:
         best = candidates[0] if candidates else None
         destination = request.destination
         weather_items = _weather_items(weather_snapshots)
         lodging, transport, food, supply = self._destination_items(destination, request.start_city)
+        if not include_lodging:
+            lodging = []
+        if not include_food:
+            food = []
+        if not include_supply:
+            supply = []
         next_steps = [
             "在两步路等外部平台核对原路线的最新评论、封山绕行和实际通行情况。",
             "出发前一天再次核对天气预警、景区/林区公告、住宿余房和返程末班时间。",
@@ -158,6 +188,9 @@ class AmapPOIResearchProvider:
         request: HikingGuideRequest,
         candidates: list[RouteCandidate],
         weather_snapshots: list[WeatherSnapshot | None],
+        include_lodging: bool = True,
+        include_food: bool = True,
+        include_supply: bool = True,
     ) -> TravelResearch:
         if not candidates:
             return TravelResearch()
@@ -172,10 +205,13 @@ class AmapPOIResearchProvider:
         all_supply: list[TravelInfoItem] = []
 
         for point in sample_points:
-            all_lodging.extend(self._query(point, "酒店|客栈|民宿|帐篷营地", "住宿", radius_m=10000))
+            if include_lodging:
+                all_lodging.extend(self._query(point, "酒店|客栈|民宿|帐篷营地", "住宿", radius_m=10000))
             all_transport.extend(self._query(point, "停车场|公交站|汽车站|火车站", "交通", radius_m=5000))
-            all_food.extend(self._query(point, "餐馆|饭店|小吃|农家乐", "餐饮", radius_m=3000))
-            all_supply.extend(self._query(point, "便利店|超市|药店|卫生院", "补给", radius_m=5000))
+            if include_food:
+                all_food.extend(self._query(point, "餐馆|饭店|小吃|农家乐", "餐饮", radius_m=3000))
+            if include_supply:
+                all_supply.extend(self._query(point, "便利店|超市|药店|卫生院", "补给", radius_m=5000))
 
         return TravelResearch(
             lodging=self._dedupe_items(all_lodging)[:10],
@@ -208,11 +244,12 @@ class AmapPOIResearchProvider:
 
     def _query(self, center: Coordinate, keywords: str, label: str, radius_m: int | None = None) -> list[TravelInfoItem]:
         effective_radius = radius_m if radius_m is not None else self.radius_m
+        amap_center = wgs84_to_gcj02(center)
         response = httpx.get(
             "https://restapi.amap.com/v3/place/around",
             params={
                 "key": self.api_key,
-                "location": f"{center.lon},{center.lat}",
+                "location": f"{amap_center.lon},{amap_center.lat}",
                 "keywords": keywords,
                 "radius": effective_radius,
                 "offset": 5,
@@ -229,6 +266,7 @@ class AmapPOIResearchProvider:
             title = str(poi.get("name") or "").strip()
             address = str(poi.get("address") or "").strip()
             distance_m = _float_or_none(poi.get("distance"))
+            coordinate = _coordinate_from_location(poi.get("location"))
             if not title:
                 continue
             detail = address or f"轨迹起点附近{label} POI"
@@ -240,8 +278,14 @@ class AmapPOIResearchProvider:
                     detail=detail,
                     source="amap-poi",
                     confidence=0.72,
+                    coordinate=coordinate,
                     distance_km=round(distance_m / 1000, 2) if distance_m is not None else None,
-                    metadata={"type": poi.get("type"), "tel": poi.get("tel")},
+                    metadata={
+                        "type": poi.get("type"),
+                        "tel": poi.get("tel"),
+                        "address": address,
+                        "coord_system": "amap_gcj02" if coordinate else None,
+                    },
                 )
             )
         return items
@@ -249,26 +293,59 @@ class AmapPOIResearchProvider:
 
 def _weather_items(weather_snapshots: Iterable[WeatherSnapshot | None]) -> list[TravelInfoItem]:
     items: list[TravelInfoItem] = []
-    seen_sources: set[str] = set()
+    seen: set[tuple[object, ...]] = set()
     for snapshot in weather_snapshots:
-        if not snapshot or snapshot.source in seen_sources:
+        if not snapshot:
             continue
-        seen_sources.add(snapshot.source)
+        key = (
+            snapshot.source,
+            snapshot.weather_text,
+            snapshot.min_temp_c,
+            snapshot.max_temp_c,
+            snapshot.precipitation_probability,
+            snapshot.precipitation_mm,
+            snapshot.max_wind_kmh,
+            snapshot.wind_gust_kmh,
+        )
+        if key in seen:
+            continue
+        seen.add(key)
         parts = []
+        if snapshot.weather_text:
+            parts.append(snapshot.weather_text)
         if snapshot.min_temp_c is not None or snapshot.max_temp_c is not None:
             min_temp = snapshot.min_temp_c if snapshot.min_temp_c is not None else "未知"
             max_temp = snapshot.max_temp_c if snapshot.max_temp_c is not None else "未知"
             parts.append(f"气温 {min_temp}-{max_temp} C")
+        if snapshot.humidity_percent is not None:
+            parts.append(f"湿度 {snapshot.humidity_percent}%")
         if snapshot.precipitation_probability is not None:
             parts.append(f"降水概率 {snapshot.precipitation_probability}%")
+        if snapshot.precipitation_mm is not None:
+            parts.append(f"降水量 {snapshot.precipitation_mm} mm")
         if snapshot.max_wind_kmh is not None:
             parts.append(f"最大风速 {snapshot.max_wind_kmh} km/h")
+        if snapshot.wind_gust_kmh is not None:
+            parts.append(f"阵风 {snapshot.wind_gust_kmh} km/h")
+        if snapshot.uv_index_max is not None:
+            parts.append(f"UV {snapshot.uv_index_max}")
         items.append(
             TravelInfoItem(
                 title="路线起点天气",
                 detail="，".join(parts) if parts else "已获取天气快照，但缺少关键日值字段。",
                 source=snapshot.source,
                 confidence=0.78,
+                metadata={
+                    "weather_text": snapshot.weather_text,
+                    "humidity_percent": snapshot.humidity_percent,
+                    "precipitation_probability": snapshot.precipitation_probability,
+                    "precipitation_mm": snapshot.precipitation_mm,
+                    "max_wind_kmh": snapshot.max_wind_kmh,
+                    "wind_gust_kmh": snapshot.wind_gust_kmh,
+                    "wind_direction": snapshot.wind_direction,
+                    "uv_index_max": snapshot.uv_index_max,
+                    "hiking_risk_notes": list(snapshot.hiking_risk_notes),
+                },
             )
         )
     return items
@@ -288,6 +365,16 @@ def _float_or_none(value: object) -> float | None:
     try:
         return float(value)
     except (TypeError, ValueError):
+        return None
+
+
+def _coordinate_from_location(value: object) -> Coordinate | None:
+    if not isinstance(value, str) or "," not in value:
+        return None
+    lon_s, lat_s = value.split(",", 1)
+    try:
+        return Coordinate(lon=float(lon_s), lat=float(lat_s))
+    except ValueError:
         return None
 
 

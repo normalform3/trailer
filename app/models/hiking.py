@@ -38,6 +38,14 @@ class HikingGuideRequest(BaseModel):
         default=None,
         description="User supplied route description, e.g. start/end/trail notes.",
     )
+    reference_links: list[str] = Field(
+        default_factory=list,
+        description="User supplied public guide links used only for supplemental reference planning.",
+    )
+    reference_notes: str | None = Field(
+        default=None,
+        description="User pasted guide notes used only for supplemental reference planning.",
+    )
 
     @field_validator("destination")
     @classmethod
@@ -46,6 +54,27 @@ class HikingGuideRequest(BaseModel):
         if not value:
             raise ValueError("destination is required")
         return value
+
+    @field_validator("reference_links")
+    @classmethod
+    def normalize_reference_links(cls, value: list[str]) -> list[str]:
+        seen: set[str] = set()
+        links: list[str] = []
+        for item in value:
+            link = str(item).strip()
+            if not link or link in seen:
+                continue
+            seen.add(link)
+            links.append(link)
+        return links
+
+    @field_validator("reference_notes")
+    @classmethod
+    def strip_reference_notes(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
 
 
 class RouteGeometry(BaseModel):
@@ -97,6 +126,7 @@ class RouteCandidate(BaseModel):
 class TravelInfoItem(BaseModel):
     title: str
     detail: str
+    coordinate: Coordinate | None = None
     source: str = "static"
     confidence: float = Field(default=0.5, ge=0, le=1)
     distance_km: float | None = None
@@ -113,11 +143,73 @@ class TravelResearch(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class GuideReferenceItem(BaseModel):
+    title: str
+    summary: str
+    source: str = "user-reference"
+    url: str | None = None
+    route_clues: list[str] = Field(default_factory=list)
+    lodging_clues: list[str] = Field(default_factory=list)
+    supply_clues: list[str] = Field(default_factory=list)
+    transport_clues: list[str] = Field(default_factory=list)
+    risk_notes: list[str] = Field(default_factory=list)
+    verification_items: list[str] = Field(default_factory=list)
+    confidence: float = Field(default=0.45, ge=0, le=1)
+
+
+class GuideReferenceResearch(BaseModel):
+    items: list[GuideReferenceItem] = Field(default_factory=list)
+    supplemental_summary: str | None = None
+    itinerary_suggestions: list[str] = Field(default_factory=list)
+    lodging_supply_transport_notes: list[str] = Field(default_factory=list)
+    risk_notes: list[str] = Field(default_factory=list)
+    verification_items: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class GuideToolPlan(BaseModel):
+    query_weather: bool = True
+    query_lodging: bool = True
+    query_food: bool = True
+    query_supply: bool = True
+    query_transport: bool = True
+    compose_with_llm: bool = True
+    rationale: list[str] = Field(default_factory=list)
+
+
+class GuideDecision(BaseModel):
+    tool_plan: GuideToolPlan = Field(default_factory=GuideToolPlan)
+    clarifying_questions: list[str] = Field(default_factory=list)
+    validation_notes: list[str] = Field(default_factory=list)
+    priority_notes: list[str] = Field(default_factory=list)
+
+
+class WeatherDetail(BaseModel):
+    title: str
+    detail: str
+    date: str | None = None
+    weather_text: str | None = None
+    max_temp_c: float | None = None
+    min_temp_c: float | None = None
+    humidity_percent: float | None = None
+    precipitation_probability: float | None = None
+    precipitation_mm: float | None = None
+    max_wind_kmh: float | None = None
+    wind_gust_kmh: float | None = None
+    wind_direction: str | None = None
+    uv_index_max: float | None = None
+    hiking_risk_notes: list[str] = Field(default_factory=list)
+    source: str = "unknown"
+
+
 class TransportOption(BaseModel):
     mode: str = Field(description="driving | transit | mixed")
     duration_hours: float | None = None
     distance_km: float | None = None
     cost_estimate: str | None = None
+    price_estimate: str | None = None
+    booking_hint: str | None = None
+    requires_user_verification: bool = True
     steps: list[str] = Field(default_factory=list)
     tip: str | None = None
     source: str = "amap"
@@ -181,11 +273,16 @@ class HikingGuideResponse(BaseModel):
     summary: str
     route_candidates: list[RouteCandidate]
     travel_research: TravelResearch | None = None
+    reference_research: GuideReferenceResearch | None = None
     transport_plan: TransportPlan | None = None
+    weather_details: list[WeatherDetail] = Field(default_factory=list)
     itinerary: Itinerary | None = None
     gear_list: GearList | None = None
     safety_guide: SafetyGuide | None = None
     recommendations: list[str]
     data_sources: list[str]
+    llm_usage: list[str] = Field(default_factory=list)
+    clarifying_questions: list[str] = Field(default_factory=list)
+    validation_notes: list[str] = Field(default_factory=list)
     warnings: list[str]
     disclaimer: str

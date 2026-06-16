@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Protocol
 
 import httpx
 
 from app.config import get_settings
 from app.models import Coordinate, TransportOption, TransportPlan
-from app.providers.places import AmapPlaceProvider
-from app.services.coordinates import wgs84_to_gcj02
 
 
 class TransportPlanningProvider(Protocol):
@@ -16,285 +15,265 @@ class TransportPlanningProvider(Protocol):
         start_city: str,
         destination_coordinate: Coordinate,
         destination_name: str,
+        departure_date: date | None = None,
     ) -> TransportPlan:
         raise NotImplementedError
 
 
-class AmapTransportProvider:
-    """使用高德地图驾车 + 公交综合路线 API 规划交通方案。"""
+class FlightPriceProvider(Protocol):
+    def cheapest_offer(
+        self,
+        origin_city: str,
+        destination_name: str,
+        departure_date: date | None,
+    ) -> TransportOption:
+        raise NotImplementedError
 
-    def __init__(self, api_key: str | None = None, timeout_s: float = 10.0) -> None:
-        settings = get_settings()
-        self.api_key = api_key or settings.api_keys.amap_api_key
-        self.timeout_s = timeout_s
-        self.place_provider = AmapPlaceProvider(self.api_key, timeout_s)
+
+class RoughTransportProvider:
+    """粗粒度出行方案：只罗列可选方式，不替用户做精确导航。"""
+
+    def __init__(self, flight_provider: FlightPriceProvider | None = None) -> None:
+        self.flight_provider = flight_provider or AmadeusFlightPriceProvider()
 
     def plan(
         self,
         start_city: str,
         destination_coordinate: Coordinate,
         destination_name: str,
+        departure_date: date | None = None,
     ) -> TransportPlan:
-        if not self.api_key:
-            raise RuntimeError("AMAP_API_KEY is not configured")
-
-        # 1. geocode 出发城市获取坐标
-        start_place = self.place_provider.resolve(start_city)
-        if not start_place or not start_place.coordinate:
-            return self._fallback_plan(start_city, destination_coordinate, destination_name)
-
-        start_gcj02 = wgs84_to_gcj02(start_place.coordinate)
-        dest_gcj02 = wgs84_to_gcj02(destination_coordinate)
-
-        # 2. 判断是否同城
-        is_same = self._is_same_region(start_gcj02, dest_gcj02)
-
-        options: list[TransportOption] = []
+        options = [
+            self._driving_option(destination_name),
+            self._rail_option(start_city, destination_name),
+            self._charter_option(destination_name),
+        ]
         warnings: list[str] = []
 
-        # 3. 驾车方案
         try:
-            driving = self._query_driving(start_gcj02, dest_gcj02)
-            if driving:
-                options.append(driving)
-        except Exception as exc:  # noqa: BLE001
-            warnings.append(f"驾车路线查询暂不可用：{exc}")
-
-        # 4. 公交方案
-        try:
-            transit = self._query_transit(start_gcj02, dest_gcj02)
-            if transit:
-                options.append(transit)
-        except Exception as exc:  # noqa: BLE001
-            warnings.append(f"公交路线查询暂不可用：{exc}")
-
-        if not options:
-            return self._fallback_plan(start_city, destination_coordinate, destination_name, extra_warnings=warnings)
+            options.insert(1, self.flight_provider.cheapest_offer(start_city, destination_name, departure_date))
+        except Exception as exc:  # noqa: BLE001 - ticket providers are optional.
+            options.insert(
+                1,
+                TransportOption(
+                    mode="flight",
+                    steps=[
+                        f"查询 {start_city} 附近机场至 {destination_name} 周边机场的机票",
+                        "再接高铁、汽车或包车前往登山口",
+                    ],
+                    tip="机票报价暂不可用，请在配置票价 API 后重试或自行核对航司/OTA",
+                    booking_hint="需要配置 AMADEUS_CLIENT_ID / AMADEUS_CLIENT_SECRET，并补充可映射机场与出行日期",
+                    requires_user_verification=True,
+                    source="flight-placeholder",
+                ),
+            )
+            warnings.append(f"机票报价查询暂不可用：{exc}")
 
         return TransportPlan(
             start_city=start_city,
-            start_coordinate=start_place.coordinate,
-            destination_name=destination_name,
             destination_coordinate=destination_coordinate,
+            destination_name=destination_name,
             options=options,
-            warnings=warnings,
-            is_same_region=is_same,
+            warnings=_dedupe(warnings),
+            is_same_region=False,
         )
 
-    def _query_driving(self, origin: Coordinate, destination: Coordinate) -> TransportOption | None:
-        """调用高德驾车路线规划 API。"""
-        response = httpx.get(
-            "https://restapi.amap.com/v3/direction/driving",
-            params={
-                "key": self.api_key,
-                "origin": f"{origin.lon},{origin.lat}",
-                "destination": f"{destination.lon},{destination.lat}",
-                "strategy": 0,  # 速度优先
-                "extensions": "base",
-            },
-            timeout=self.timeout_s,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        self._raise_for_amap_error(payload, "driving")
-
-        paths = (payload.get("route") or {}).get("paths") or []
-        if not paths:
-            return None
-
-        path = paths[0]
-        distance_m = _float_or_none(path.get("distance"))
-        duration_s = _float_or_none(path.get("duration"))
-
-        # 提取关键步骤（合并短步骤，取最多 5 条）
-        raw_steps = path.get("steps") or []
-        steps: list[str] = []
-        for step in raw_steps:
-            instruction = str(step.get("instruction") or "").strip()
-            if instruction:
-                steps.append(instruction)
-        steps = steps[:5]
-
-        distance_km = round(distance_m / 1000, 1) if distance_m is not None else None
-        duration_hours = round(duration_s / 3600, 1) if duration_s is not None else None
-
-        # 费用粗算
-        cost_estimate = None
-        if distance_km is not None:
-            cost_estimate = f"约 {round(distance_km * 0.5)} 元（油费粗算）"
-
+    def _driving_option(self, destination_name: str) -> TransportOption:
         return TransportOption(
             mode="driving",
-            duration_hours=duration_hours,
-            distance_km=distance_km,
-            cost_estimate=cost_estimate,
-            steps=steps,
-            tip="自驾请注意山区路况和停车位置",
-            source="amap-driving",
+            steps=[
+                f"自驾到 {destination_name} 附近镇区或景区停车点",
+                "出发前自行使用导航确认实时路况、停车场开放和夜间山路限制",
+                "把最后一段接驳、返程取车和备用下撤点提前写入行程",
+            ],
+            tip="自驾不在本系统内做精确路线规划，以用户实时导航为准",
+            booking_hint="自行核对停车点、山路限行、景区换乘和返程取车",
+            requires_user_verification=True,
+            source="rough-driving",
         )
 
-    def _query_transit(self, origin: Coordinate, destination: Coordinate) -> TransportOption | None:
-        """调用高德公交路线规划 API。"""
-        # 获取出发和目的地城市的 adcode
-        origin_adcode = self._adcode_for_coordinate(origin)
-        dest_adcode = self._adcode_for_coordinate(destination)
-
-        response = httpx.get(
-            "https://restapi.amap.com/v3/direction/transit/integrated",
-            params={
-                "key": self.api_key,
-                "origin": f"{origin.lon},{origin.lat}",
-                "destination": f"{destination.lon},{destination.lat}",
-                "city": origin_adcode,
-                "cityd": dest_adcode,
-                "strategy": 0,  # 最快捷
-            },
-            timeout=self.timeout_s,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        self._raise_for_amap_error(payload, "transit")
-
-        transits = (payload.get("route") or {}).get("transits") or []
-        if not transits:
-            return None
-
-        best = transits[0]
-        distance_m = _float_or_none(best.get("distance"))
-        duration_s = _float_or_none(best.get("duration"))
-        cost_str = best.get("cost")
-
-        # 提取公交段描述
-        steps: list[str] = []
-        segments = best.get("segments") or []
-        for seg in segments[:6]:
-            bus_info = seg.get("bus") or {}
-            bus_lines = bus_info.get("buslines") or []
-            if bus_lines:
-                line = bus_lines[0]
-                name = str(line.get("name") or "")
-                dep = (line.get("departure_stop") or {}).get("name", "")
-                arr = (line.get("arrival_stop") or {}).get("name", "")
-                if name:
-                    steps.append(f"{name}：{dep} → {arr}")
-            else:
-                walking = seg.get("walking") or {}
-                walk_dist = _float_or_none(walking.get("distance"))
-                if walk_dist is not None and walk_dist > 0:
-                    steps.append(f"步行约 {round(walk_dist / 1000, 1)} km")
-
-        distance_km = round(distance_m / 1000, 1) if distance_m is not None else None
-        duration_hours = round(duration_s / 3600, 1) if duration_s is not None else None
-        cost_estimate = f"约 {cost_str} 元" if cost_str else None
-
+    def _rail_option(self, start_city: str, destination_name: str) -> TransportOption:
         return TransportOption(
-            mode="transit",
-            duration_hours=duration_hours,
-            distance_km=distance_km,
-            cost_estimate=cost_estimate,
-            steps=steps,
-            tip="请提前查询末班车时间和余票",
-            source="amap-transit",
+            mode="rail",
+            steps=[
+                f"从 {start_city} 查询高铁/火车至 {destination_name} 周边高铁站或地级市",
+                "再转当地客运、景区交通、网约车或包车到登山口",
+                "优先核对到达后是否还能赶上末班接驳",
+            ],
+            tip="火车票价暂不接非公开 12306 接口，请以铁路 12306 为准",
+            booking_hint="铁路 12306 / 官方售票渠道核对车次、票价、余票和改签规则",
+            requires_user_verification=True,
+            source="rail-placeholder",
         )
 
-    def _adcode_for_coordinate(self, coordinate: Coordinate) -> str:
-        """通过逆地理编码获取 adcode。"""
+    def _charter_option(self, destination_name: str) -> TransportOption:
+        return TransportOption(
+            mode="charter",
+            steps=[
+                f"到达 {destination_name} 周边城镇后，联系民宿、客栈或当地司机确认接驳",
+                "提前约定上山口、下山口、等待时间、夜间加价和取消规则",
+            ],
+            tip="山区最后一段交通波动大，建议保留司机电话和备选下撤接驳",
+            booking_hint="通过住宿方、当地客运站或正规平台核实",
+            requires_user_verification=True,
+            source="rough-charter",
+        )
+
+
+class AmadeusFlightPriceProvider:
+    token_url = "https://test.api.amadeus.com/v1/security/oauth2/token"
+    offers_url = "https://test.api.amadeus.com/v2/shopping/flight-offers"
+
+    def __init__(
+        self,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        timeout_s: float = 10.0,
+    ) -> None:
+        settings = get_settings()
+        self.client_id = client_id if client_id is not None else settings.api_keys.amadeus_client_id
+        self.client_secret = client_secret if client_secret is not None else settings.api_keys.amadeus_client_secret
+        self.timeout_s = timeout_s
+
+    def cheapest_offer(
+        self,
+        origin_city: str,
+        destination_name: str,
+        departure_date: date | None,
+    ) -> TransportOption:
+        if not self.client_id or not self.client_secret:
+            raise RuntimeError("Amadeus credentials are not configured")
+        if departure_date is None:
+            raise RuntimeError("出行日期缺失，无法查询机票报价")
+
+        origin = _city_to_iata(origin_city)
+        destination = _destination_to_iata(destination_name)
+        if not origin or not destination:
+            raise RuntimeError("出发地或目的地无法映射到机场代码")
+
+        token = self._access_token()
         response = httpx.get(
-            "https://restapi.amap.com/v3/geocode/regeo",
+            self.offers_url,
+            headers={"Authorization": f"Bearer {token}"},
             params={
-                "key": self.api_key,
-                "location": f"{coordinate.lon},{coordinate.lat}",
-                "extensions": "base",
-                "output": "JSON",
+                "originLocationCode": origin,
+                "destinationLocationCode": destination,
+                "departureDate": departure_date.isoformat(),
+                "adults": 1,
+                "currencyCode": "CNY",
+                "max": 5,
             },
             timeout=self.timeout_s,
         )
         response.raise_for_status()
-        payload = response.json()
-        self._raise_for_amap_error(payload, "regeo-transport")
-        address_component = (payload.get("regeocode") or {}).get("addressComponent") or {}
-        adcode = str(address_component.get("adcode") or "").strip()
-        if not adcode:
-            raise RuntimeError("Amap reverse geocode did not include adcode")
-        return adcode
+        offers = response.json().get("data") or []
+        if not offers:
+            raise RuntimeError("Amadeus did not return flight offers")
 
-    def _is_same_region(self, origin_gcj02: Coordinate, dest_gcj02: Coordinate) -> bool:
-        """判断出发地和目的地是否同城（比较省份代码）。"""
-        try:
-            origin_adcode = self._adcode_for_coordinate(origin_gcj02)
-            dest_adcode = self._adcode_for_coordinate(dest_gcj02)
-            # 省份代码为前 2 位
-            return origin_adcode[:2] == dest_adcode[:2]
-        except Exception:  # noqa: BLE001
-            return False
-
-    def _fallback_plan(
-        self,
-        start_city: str,
-        destination_coordinate: Coordinate,
-        destination_name: str,
-        extra_warnings: list[str] | None = None,
-    ) -> TransportPlan:
-        """当 API 不可用时的降级方案。"""
-        return TransportPlan(
-            start_city=start_city,
-            destination_coordinate=destination_coordinate,
-            destination_name=destination_name,
-            options=[
-                TransportOption(
-                    mode="mixed",
-                    steps=[
-                        f"从{start_city}出发，建议查询铁路/长途客运到达目的地附近站点",
-                        f"再转当地接驳到达路线起点（{destination_name}）",
-                        "出发前确认末班车时间、票价和余票",
-                    ],
-                    tip="交通规划需自行查询，本结果为通用建议",
-                    source="static",
-                )
-            ],
-            warnings=_dedupe([
-                "交通规划服务暂不可用，请自行查询具体班次和路线",
-                *(extra_warnings or []),
-            ]),
-            is_same_region=False,
+        cheapest = min(offers, key=lambda item: _float_or_none((item.get("price") or {}).get("grandTotal")) or float("inf"))
+        price = cheapest.get("price") or {}
+        amount = price.get("grandTotal")
+        currency = price.get("currency") or "CNY"
+        segments = _flight_segments(cheapest)
+        return TransportOption(
+            mode="flight",
+            price_estimate=f"{amount} {currency}" if amount else None,
+            cost_estimate=f"{amount} {currency}" if amount else None,
+            steps=segments or [f"{origin} → {destination}，再转地面交通到登山口"],
+            tip="机票价格波动较大，需以航司或出票平台实时结果为准",
+            booking_hint="核对行李额、退改签、到达机场到登山口的接驳时间",
+            requires_user_verification=True,
+            source="amadeus-flight-offers",
         )
 
-    def _raise_for_amap_error(self, payload: dict[str, object], operation: str) -> None:
-        if str(payload.get("status")) == "1":
-            return
-        info = payload.get("info") or "Amap request failed"
-        infocode = payload.get("infocode") or "unknown"
-        raise RuntimeError(f"Amap {operation} failed ({infocode}): {info}")
-
-
-class StaticTransportProvider:
-    """静态降级交通规划，返回通用建议模板。"""
-
-    def plan(
-        self,
-        start_city: str,
-        destination_coordinate: Coordinate,
-        destination_name: str,
-    ) -> TransportPlan:
-        return TransportPlan(
-            start_city=start_city,
-            destination_coordinate=destination_coordinate,
-            destination_name=destination_name,
-            options=[
-                TransportOption(
-                    mode="mixed",
-                    steps=[
-                        f"从{start_city}出发，建议查询铁路/长途客运到达目的地附近站点",
-                        f"再转当地接驳到达路线起点（{destination_name}）",
-                        "出发前确认末班车时间、票价和余票",
-                    ],
-                    tip="交通规划需自行查询，本结果为通用建议",
-                    source="static",
-                )
-            ],
-            warnings=["交通规划服务暂不可用，请自行查询具体班次和路线"],
-            is_same_region=False,
+    def _access_token(self) -> str:
+        response = httpx.post(
+            self.token_url,
+            data={
+                "grant_type": "client_credentials",
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+            },
+            timeout=self.timeout_s,
         )
+        response.raise_for_status()
+        token = response.json().get("access_token")
+        if not token:
+            raise RuntimeError("Amadeus token response did not include access_token")
+        return str(token)
+
+
+# Backward-compatible aliases for existing imports/tests.
+class AmapTransportProvider(RoughTransportProvider):
+    pass
+
+
+class StaticTransportProvider(RoughTransportProvider):
+    def __init__(self) -> None:
+        super().__init__(flight_provider=UnavailableFlightPriceProvider())
+
+
+class UnavailableFlightPriceProvider:
+    def cheapest_offer(
+        self,
+        origin_city: str,
+        destination_name: str,
+        departure_date: date | None,
+    ) -> TransportOption:
+        raise RuntimeError("flight price provider is not configured")
+
+
+def _city_to_iata(value: str) -> str | None:
+    text = value.strip().lower()
+    mapping = {
+        "北京": "BJS",
+        "上海": "SHA",
+        "广州": "CAN",
+        "深圳": "SZX",
+        "成都": "CTU",
+        "杭州": "HGH",
+        "南京": "NKG",
+        "武汉": "WUH",
+        "西安": "SIA",
+        "重庆": "CKG",
+    }
+    for keyword, code in mapping.items():
+        if keyword.lower() in text:
+            return code
+    if len(value.strip()) == 3 and value.isalpha():
+        return value.upper()
+    return None
+
+
+def _destination_to_iata(value: str) -> str | None:
+    mapping = {
+        "武功山": "KHN",
+        "黄山": "TXN",
+        "四姑娘山": "CTU",
+        "峨眉山": "CTU",
+        "张家界": "DYG",
+    }
+    for keyword, code in mapping.items():
+        if keyword in value:
+            return code
+    return _city_to_iata(value)
+
+
+def _flight_segments(offer: dict[str, object]) -> list[str]:
+    segments: list[str] = []
+    itineraries = offer.get("itineraries") if isinstance(offer, dict) else None
+    if not isinstance(itineraries, list):
+        return segments
+    for itinerary in itineraries[:1]:
+        for segment in (itinerary.get("segments") or [])[:3]:
+            dep = (segment.get("departure") or {}).get("iataCode", "")
+            arr = (segment.get("arrival") or {}).get("iataCode", "")
+            carrier = segment.get("carrierCode", "")
+            number = segment.get("number", "")
+            if dep and arr:
+                flight = f"{carrier}{number}" if carrier or number else "航班"
+                segments.append(f"{flight}: {dep} → {arr}")
+    return segments
 
 
 def _float_or_none(value: object) -> float | None:

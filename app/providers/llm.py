@@ -7,10 +7,14 @@ from app.config import get_settings
 from app.models import (
     GearCategory,
     GearList,
+    GuideDecision,
+    GuideReferenceResearch,
+    GuideToolPlan,
     HikingGuideRequest,
     Itinerary,
     RiskPoint,
     RouteCandidate,
+    RouteGeometry,
     SafetyGuide,
     TransportPlan,
     TravelResearch,
@@ -47,8 +51,98 @@ class GuideLLMProvider(Protocol):
     ) -> GuideDraft:
         raise NotImplementedError
 
+    def generate_reference_research(
+        self,
+        request: HikingGuideRequest,
+        candidates: list[RouteCandidate],
+        guide_summary: str,
+        reference_research: GuideReferenceResearch,
+    ) -> GuideReferenceResearch:
+        raise NotImplementedError
+
+
+class GuidePlanningProvider(Protocol):
+    def plan_tools(
+        self,
+        request: HikingGuideRequest,
+        routes: list[RouteGeometry],
+        warnings: list[str],
+        data_sources: list[str],
+    ) -> GuideDecision | GuideToolPlan:
+        raise NotImplementedError
+
+
+class StaticGuidePlanningProvider:
+    def plan_tools(
+        self,
+        request: HikingGuideRequest,
+        routes: list[RouteGeometry],
+        warnings: list[str],
+        data_sources: list[str],
+    ) -> GuideDecision:
+        has_routes = bool(routes)
+        questions: list[str] = []
+        notes: list[str] = []
+        if not request.start_city:
+            questions.append("你从哪个城市出发？补充后可以给出更合适的机票/高铁方案。")
+            notes.append("缺少出发城市，交通方案只能保留通用建议。")
+        if not request.date_range:
+            questions.append("计划哪天出发、哪天返回？补充后可以查询机票报价并细化天气窗口。")
+            notes.append("缺少出行日期，票价查询会跳过或降级为占位提示。")
+        return GuideDecision(
+            tool_plan=GuideToolPlan(
+                query_weather=has_routes,
+                query_lodging=has_routes,
+                query_food=has_routes,
+                query_supply=has_routes,
+                query_transport=bool(has_routes and request.start_city),
+                compose_with_llm=True,
+                rationale=["使用代码默认工具计划"],
+            ),
+            clarifying_questions=questions,
+            validation_notes=notes,
+        )
+
 
 class TemplateGuideProvider:
+    @staticmethod
+    def _aggregate_candidates(candidates: list[RouteCandidate]) -> dict:
+        """Aggregate metrics across all route candidates (multi-segment trails)."""
+        total_distance = sum(c.analysis.distance_km for c in candidates)
+        total_duration = sum(c.analysis.estimated_duration_hours for c in candidates)
+        all_elev = [c.analysis.elevation for c in candidates]
+        max_elev = max((e.max_m for e in all_elev if e.max_m is not None), default=None)
+        min_elev = min((e.min_m for e in all_elev if e.min_m is not None), default=None)
+        total_ascent = sum((e.ascent_m or 0) for e in all_elev)
+        total_descent = sum((e.descent_m or 0) for e in all_elev)
+        worst_risk = "high" if any(c.analysis.risk_level == "high" for c in candidates) else (
+            "medium" if any(c.analysis.risk_level == "medium" for c in candidates) else "low"
+        )
+        all_risk_factors: list[str] = []
+        for c in candidates:
+            for f in c.analysis.risk_factors:
+                if f not in all_risk_factors:
+                    all_risk_factors.append(f)
+        all_warnings: list[str] = []
+        for c in candidates:
+            for w in c.analysis.warnings:
+                if w not in all_warnings:
+                    all_warnings.append(w)
+        route_names = [c.route.name for c in candidates]
+        return {
+            "total_distance": total_distance,
+            "total_duration": total_duration,
+            "max_elevation": max_elev,
+            "min_elevation": min_elev,
+            "total_ascent": total_ascent,
+            "total_descent": total_descent,
+            "worst_risk": worst_risk,
+            "all_risk_factors": all_risk_factors,
+            "all_warnings": all_warnings,
+            "route_names": route_names,
+            "count": len(candidates),
+        }
+
     def generate_guide(
         self,
         request: HikingGuideRequest,
@@ -65,13 +159,23 @@ class TemplateGuideProvider:
                 source="template",
             )
 
-        best = candidates[0]
-        summary = (
-            f"已为 {request.destination} 生成 {len(candidates)} 条路线方案。"
-            f"首选路线为「{best.route.name}」，来源为{best.label}，"
-            f"约 {best.analysis.distance_km} km，预计 {best.analysis.estimated_duration_hours} 小时，"
-            f"风险等级 {best.analysis.risk_level}。"
-        )
+        agg = self._aggregate_candidates(candidates)
+        multi = agg["count"] > 1
+        if multi:
+            name_list = "、".join(agg["route_names"][:5])
+            summary = (
+                f"已为 {request.destination} 规划 {agg['count']} 段拼接路线（{name_list}），"
+                f"全程约 {agg['total_distance']:.1f} km，预计 {agg['total_duration']:.1f} 小时，"
+                f"风险等级 {agg['worst_risk']}。"
+            )
+        else:
+            best = candidates[0]
+            summary = (
+                f"已为 {request.destination} 生成路线方案。"
+                f"路线为「{best.route.name}」，来源为{best.label}，"
+                f"约 {best.analysis.distance_km} km，预计 {best.analysis.estimated_duration_hours} 小时，"
+                f"风险等级 {best.analysis.risk_level}。"
+            )
         recommendations = [
             "出发前再次核对天气预警、景区开放状态、交通末班时间和补给点营业情况。",
             "API 规划路线仅代表可行路径建议，不应包装为社区热门路线或真实用户轨迹。",
@@ -84,15 +188,15 @@ class TemplateGuideProvider:
                 recommendations.append(f"交通优先核对：{travel_research.transport[0].title}。")
         if any(candidate.route.source == "user_kml" for candidate in candidates):
             recommendations.insert(0, "已优先使用用户提供的 KML 轨迹，并在此基础上补充距离、海拔和风险分析。")
-        if any(candidate.analysis.risk_level == "high" for candidate in candidates):
+        if agg["worst_risk"] == "high":
             recommendations.append("存在高风险路线，建议降低强度、缩短行程或选择更稳定天气窗口。")
 
         # 生成静态行程日程
-        itinerary = self._template_itinerary(request, candidates)
+        itinerary = self._template_itinerary(request, candidates, agg)
         # 生成静态装备清单
-        gear_list = self._template_gear_list(request, candidates)
+        gear_list = self._template_gear_list(request, candidates, agg)
         # 生成静态安全提醒
-        safety_guide = self._template_safety_guide(request, candidates, warnings)
+        safety_guide = self._template_safety_guide(request, candidates, warnings, agg)
 
         return GuideDraft(
             summary=summary,
@@ -103,41 +207,82 @@ class TemplateGuideProvider:
             safety_guide=safety_guide,
         )
 
-    def _template_itinerary(self, request: HikingGuideRequest, candidates: list[RouteCandidate]) -> Itinerary | None:
-        best = candidates[0] if candidates else None
-        if not best:
+    def generate_reference_research(
+        self,
+        request: HikingGuideRequest,
+        candidates: list[RouteCandidate],
+        guide_summary: str,
+        reference_research: GuideReferenceResearch,
+    ) -> GuideReferenceResearch:
+        return reference_research
+
+    def _template_itinerary(self, request: HikingGuideRequest, candidates: list[RouteCandidate], agg: dict) -> Itinerary | None:
+        if not candidates:
             return None
-        duration = best.analysis.estimated_duration_hours
+        distance = agg["total_distance"]
+        duration = agg["total_duration"]
+        route_names = agg["route_names"]
         is_multi = duration > 8.0
-        total_days = max(1, round(duration / 8.0)) if is_multi else 1
-        distance = best.analysis.distance_km
-        elev = best.analysis.elevation
+        total_days = max(2, -(-int(duration) // 8)) if is_multi else 1
 
         days: list[dict] = []
         if not is_multi:
+            if len(candidates) > 1:
+                segments = [f"{name}（{c.analysis.distance_km:.1f} km）" for name, c in zip(route_names, candidates)]
+                key_seg = [f"共 {len(candidates)} 段拼接：{'→'.join(segments)}"]
+                title = f"单日徒步：{'→'.join(route_names)}"
+            else:
+                title = f"单日徒步：{route_names[0]}"
+                key_seg = [f"全程 {distance:.1f} km，预计 {duration:.1f} 小时"]
             days.append({
                 "day_number": 1,
-                "title": f"单日徒步：{best.route.name}",
+                "title": title,
                 "distance_km": round(distance, 1),
-                "elevation_gain_m": elev.ascent_m,
-                "key_segments": [f"全程 {round(distance, 1)} km，预计 {round(duration, 1)} 小时"],
+                "elevation_gain_m": agg["total_ascent"] or None,
+                "key_segments": key_seg,
                 "lodging_suggestion": None,
                 "notes": ["请合理安排出发时间，预留充足返程时间"],
             })
         else:
-            daily_dist = round(distance / total_days, 1)
-            daily_ascent = round((elev.ascent_m or 0) / total_days, 0) if elev.ascent_m else None
-            for day_num in range(1, total_days + 1):
-                is_last = day_num == total_days
-                days.append({
-                    "day_number": day_num,
-                    "title": f"Day {day_num}：{'下山段' if is_last else '上山段'}",
-                    "distance_km": daily_dist,
-                    "elevation_gain_m": daily_ascent if not is_last else None,
-                    "key_segments": [f"预计行进 {daily_dist} km"],
-                    "lodging_suggestion": "需提前确认沿途住宿" if not is_last else None,
-                    "notes": ["注意分配体力，留足余量"],
-                })
+            # Multi-day: distribute route segments across days
+            if len(candidates) > 1 and total_days <= len(candidates):
+                # Map segments to days when days <= segments
+                segs_per_day = max(1, len(candidates) // total_days)
+                day_idx = 0
+                for day_num in range(1, total_days + 1):
+                    is_last = day_num == total_days
+                    start_i = day_idx
+                    end_i = len(candidates) if is_last else min(day_idx + segs_per_day, len(candidates))
+                    day_segs = candidates[start_i:end_i]
+                    day_names = [c.route.name for c in day_segs]
+                    day_dist = sum(c.analysis.distance_km for c in day_segs)
+                    day_ascent = sum((c.analysis.elevation.ascent_m or 0) for c in day_segs)
+                    day_dur = sum(c.analysis.estimated_duration_hours for c in day_segs)
+                    seg_details = [f"{c.route.name}（{c.analysis.distance_km:.1f} km）" for c in day_segs]
+                    days.append({
+                        "day_number": day_num,
+                        "title": f"Day {day_num}：{'→'.join(day_names)}",
+                        "distance_km": round(day_dist, 1),
+                        "elevation_gain_m": round(day_ascent, 0) if day_ascent else None,
+                        "key_segments": seg_details + [f"当日合计 {day_dist:.1f} km，约 {day_dur:.1f} 小时"],
+                        "lodging_suggestion": "需提前确认沿途住宿" if not is_last else None,
+                        "notes": ["注意分配体力，留足余量"],
+                    })
+                    day_idx = end_i
+            else:
+                daily_dist = round(distance / total_days, 1)
+                daily_ascent = round(agg["total_ascent"] / total_days, 0) if agg["total_ascent"] else None
+                for day_num in range(1, total_days + 1):
+                    is_last = day_num == total_days
+                    days.append({
+                        "day_number": day_num,
+                        "title": f"Day {day_num}：{'下山段' if is_last else '上山段'}",
+                        "distance_km": daily_dist,
+                        "elevation_gain_m": daily_ascent if not is_last else None,
+                        "key_segments": [f"预计行进 {daily_dist} km"],
+                        "lodging_suggestion": "需提前确认沿途住宿" if not is_last else None,
+                        "notes": ["注意分配体力，留足余量"],
+                    })
 
         from app.models import DayPlan
         return Itinerary(
@@ -147,26 +292,25 @@ class TemplateGuideProvider:
             notes=["行程为模板建议，请根据实际路线和体力调整"],
         )
 
-    def _template_gear_list(self, request: HikingGuideRequest, candidates: list[RouteCandidate]) -> GearList | None:
-        best = candidates[0] if candidates else None
-        if not best:
+    def _template_gear_list(self, request: HikingGuideRequest, candidates: list[RouteCandidate], agg: dict) -> GearList | None:
+        if not candidates:
             return None
 
         categories: list[GearCategory] = []
         categories.append(GearCategory(category="基础装备", items=["登山杖", "登山鞋/徒步鞋", "双肩背包(30-40L)", "头灯/手电筒"]))
 
         clothing = ["速干衣裤", "防风外套", "雨衣/防水外套"]
-        if best.analysis.elevation.max_m is not None and best.analysis.elevation.max_m >= 3000:
+        if agg["max_elevation"] is not None and agg["max_elevation"] >= 3000:
             clothing.extend(["抓绒衣/羽绒内胆", "保暖帽", "防风手套"])
         categories.append(GearCategory(category="衣物防护", items=clothing))
 
         food_items = ["充足饮水(2-3L)", "高热量路粮(能量棒/坚果)", "电解质饮料"]
-        if best.analysis.distance_km > 20:
+        if agg["total_distance"] > 20:
             food_items.append("午餐便当/压缩饼干")
         categories.append(GearCategory(category="饮食补给", items=food_items))
 
         safety_items = ["急救包(创可贴/绷带/碘伏)", "求生哨", "防晒霜/墨镜"]
-        if best.analysis.risk_level in ("medium", "high"):
+        if agg["worst_risk"] in ("medium", "high"):
             safety_items.extend(["保温毯", "备用手机电池/充电宝"])
         if request.fitness_level == "beginner":
             safety_items.append("护膝")
@@ -175,13 +319,12 @@ class TemplateGuideProvider:
         categories.append(GearCategory(category="电子导航", items=["手机(离线地图)", "充电宝", "运动手表/GPS"]))
 
         notes = []
-        if best.analysis.elevation.max_m is not None and best.analysis.elevation.max_m >= 3000:
+        if agg["max_elevation"] is not None and agg["max_elevation"] >= 3000:
             notes.append("高海拔路线，注意防寒和高原反应")
         return GearList(categories=categories, notes=notes)
 
-    def _template_safety_guide(self, request: HikingGuideRequest, candidates: list[RouteCandidate], warnings: list[str]) -> SafetyGuide | None:
-        best = candidates[0] if candidates else None
-        if not best:
+    def _template_safety_guide(self, request: HikingGuideRequest, candidates: list[RouteCandidate], warnings: list[str], agg: dict) -> SafetyGuide | None:
+        if not candidates:
             return None
 
         general_warnings = [
@@ -189,12 +332,12 @@ class TemplateGuideProvider:
             "不要独自走未开发的野路",
             "遇到恶劣天气立即下撤，不要冒险继续",
         ]
-        if best.analysis.elevation.max_m is not None and best.analysis.elevation.max_m >= 3000:
+        if agg["max_elevation"] is not None and agg["max_elevation"] >= 3000:
             general_warnings.append("高海拔地区注意高原反应，出现症状立即下撤")
 
         risk_points: list[RiskPoint] = []
-        for factor in best.analysis.risk_factors:
-            severity = "high" if best.analysis.risk_level == "high" else "medium"
+        for factor in agg["all_risk_factors"]:
+            severity = "high" if agg["worst_risk"] == "high" else "medium"
             mitigation = "提高警觉，必要时下撤"
             if "高海拔" in factor:
                 mitigation = "缓慢行进，注意呼吸节奏，出现不适立即下撤"
@@ -297,6 +440,9 @@ class BailianQwenGuideProvider:
                                 "   - \"emergency_contacts\": 应急联系建议(str[])\n"
                                 "   - \"emergency_measures\": 应急措施(str[], 3-5条)\n"
                                 "   - \"seasonal_notes\": 季节性注意事项(str[])\n\n"
+                                "重要规则：route_candidates 中的多条路线通常是同一条步道的多个分段拼接（而非备选路线）。"
+                                "请将所有分段的距离和耗时相加得到全程数据，行程日程要覆盖全部分段，"
+                                "summary 中要体现全程总距离和总耗时。\n\n"
                                 f"输入 JSON：{self._build_prompt_payload(request, candidates, warnings, data_sources, travel_research, transport_plan)}"
                             )
                         }
@@ -348,6 +494,108 @@ class BailianQwenGuideProvider:
             safety_guide=safety_guide,
         )
 
+    def plan_tools(
+        self,
+        request: HikingGuideRequest,
+        routes: list[RouteGeometry],
+        warnings: list[str],
+        data_sources: list[str],
+    ) -> GuideDecision:
+        if not self.api_key:
+            raise RuntimeError("DASHSCOPE_API_KEY or BAILIAN_API_KEY is not configured")
+
+        try:
+            import dashscope
+        except ModuleNotFoundError as exc:
+            raise RuntimeError("dashscope package is not installed; run `pip install -e .`") from exc
+
+        dashscope.base_http_api_url = self.base_http_api_url
+        response = dashscope.MultiModalConversation.call(
+            api_key=self.api_key,
+            model=self.model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "text": (
+                                "你是徒步攻略系统中的工具决策器，负责决定调用哪些代码工具、是否需要追问、"
+                                "以及对结果做非阻断验证。不要生成攻略正文，不要编造外部事实。\n\n"
+                                "输出必须是 JSON 对象，包含："
+                                "tool_plan(object，含 query_weather/query_lodging/query_food/query_supply/"
+                                "query_transport/compose_with_llm/rationale), "
+                                "clarifying_questions(string[]), validation_notes(string[]), priority_notes(string[])。\n"
+                                "规则：有路线时通常需要天气、住宿、餐饮和补给；只有用户提供 start_city 才需要交通；"
+                                "缺少日期或出发城市时，不阻断生成，只在 clarifying_questions 和 validation_notes 里提示。"
+                                f"\n\n输入 JSON：{self._build_tool_plan_payload(request, routes, warnings, data_sources)}"
+                            )
+                        }
+                    ],
+                }
+            ],
+        )
+        self._raise_for_dashscope_error(response)
+        parsed = self._parse_json_content(self._extract_text(response))
+        if "tool_plan" in parsed:
+            return GuideDecision(**parsed)
+        return GuideDecision(tool_plan=GuideToolPlan(**parsed))
+
+    def generate_reference_research(
+        self,
+        request: HikingGuideRequest,
+        candidates: list[RouteCandidate],
+        guide_summary: str,
+        reference_research: GuideReferenceResearch,
+    ) -> GuideReferenceResearch:
+        if not self.api_key:
+            raise RuntimeError("DASHSCOPE_API_KEY or BAILIAN_API_KEY is not configured")
+
+        try:
+            import dashscope
+        except ModuleNotFoundError as exc:
+            raise RuntimeError("dashscope package is not installed; run `pip install -e .`") from exc
+
+        dashscope.base_http_api_url = self.base_http_api_url
+        response = dashscope.MultiModalConversation.call(
+            api_key=self.api_key,
+            model=self.model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "text": (
+                                "你是徒步攻略系统中的参考攻略补充规划器。"
+                                "你只能基于用户提供的参考攻略结构化材料做补充，不得覆盖主攻略结论，"
+                                "不得把参考攻略包装为官方事实，不得复刻原文长段内容。\n\n"
+                                "输出必须是 JSON 对象，只包含以下字段："
+                                "supplemental_summary(string), itinerary_suggestions(string[]), "
+                                "lodging_supply_transport_notes(string[]), risk_notes(string[]), "
+                                "verification_items(string[])。\n"
+                                "要求：所有内容都应表述为经验参考或待核验项；若参考材料与主攻略摘要或路线数据冲突，"
+                                "放入 verification_items，不要改写主攻略。\n\n"
+                                f"输入 JSON：{self._build_reference_payload(request, candidates, guide_summary, reference_research)}"
+                            )
+                        }
+                    ],
+                }
+            ],
+        )
+        self._raise_for_dashscope_error(response)
+        parsed = self._parse_json_content(self._extract_text(response))
+        return reference_research.model_copy(
+            update={
+                "supplemental_summary": str(parsed.get("supplemental_summary") or reference_research.supplemental_summary or "").strip() or None,
+                "itinerary_suggestions": _string_list(parsed.get("itinerary_suggestions")) or reference_research.itinerary_suggestions,
+                "lodging_supply_transport_notes": (
+                    _string_list(parsed.get("lodging_supply_transport_notes"))
+                    or reference_research.lodging_supply_transport_notes
+                ),
+                "risk_notes": _string_list(parsed.get("risk_notes")) or reference_research.risk_notes,
+                "verification_items": _string_list(parsed.get("verification_items")) or reference_research.verification_items,
+            }
+        )
+
     def _build_prompt_payload(
         self,
         request: HikingGuideRequest,
@@ -386,6 +634,58 @@ class BailianQwenGuideProvider:
                 "data_sources": data_sources,
                 "travel_research": travel_research.model_dump() if travel_research else None,
                 "transport_plan": transport_plan.model_dump() if transport_plan else None,
+            },
+            ensure_ascii=False,
+        )
+
+    def _build_tool_plan_payload(
+        self,
+        request: HikingGuideRequest,
+        routes: list[RouteGeometry],
+        warnings: list[str],
+        data_sources: list[str],
+    ) -> str:
+        return json.dumps(
+            {
+                "destination": request.destination,
+                "start_city": request.start_city,
+                "date_range": [d.isoformat() for d in request.date_range]
+                if request.date_range
+                else None,
+                "fitness_level": request.fitness_level,
+                "preferences": request.preferences,
+                "route_text": request.route_text,
+                "route_count": len(routes),
+                "route_sources": [route.source for route in routes],
+                "warnings": warnings,
+                "data_sources": data_sources,
+            },
+            ensure_ascii=False,
+        )
+
+    def _build_reference_payload(
+        self,
+        request: HikingGuideRequest,
+        candidates: list[RouteCandidate],
+        guide_summary: str,
+        reference_research: GuideReferenceResearch,
+    ) -> str:
+        return json.dumps(
+            {
+                "destination": request.destination,
+                "guide_summary": guide_summary,
+                "route_overview": [
+                    {
+                        "name": candidate.route.name,
+                        "source": candidate.route.source,
+                        "distance_km": candidate.analysis.distance_km,
+                        "estimated_duration_hours": candidate.analysis.estimated_duration_hours,
+                        "risk_level": candidate.analysis.risk_level,
+                        "risk_factors": candidate.analysis.risk_factors,
+                    }
+                    for candidate in candidates[:3]
+                ],
+                "reference_research": reference_research.model_dump(),
             },
             ensure_ascii=False,
         )
@@ -467,3 +767,9 @@ class BailianQwenGuideProvider:
             raise RuntimeError("LLM response must be a JSON object")
 
         return parsed
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]

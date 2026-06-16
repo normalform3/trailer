@@ -48,10 +48,211 @@
 
       button, input, textarea, select { font: inherit; }
 
-      .shell {
-        width: min(1280px, calc(100% - 32px));
+      .app-frame {
+        width: min(1480px, calc(100% - 28px));
         margin: 0 auto;
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+        gap: 22px;
+        align-items: start;
+        transition: grid-template-columns 0.2s ease;
+      }
+
+      .app-frame.history-collapsed {
+        grid-template-columns: 56px minmax(0, 1fr);
+      }
+
+      .shell {
+        width: 100%;
+        min-width: 0;
         padding: 28px 0 40px;
+      }
+
+      .history-sidebar {
+        position: sticky;
+        top: 18px;
+        max-height: calc(100vh - 36px);
+        overflow: hidden;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 12px;
+        padding: 18px;
+        margin-top: 28px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(255, 250, 240, 0.88);
+        box-shadow: var(--shadow);
+        transition: padding 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+      }
+
+      .history-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .history-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .history-mark {
+        width: 24px;
+        height: 24px;
+        border-radius: 7px;
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        background: var(--moss-dark);
+        color: #fff9e8;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .history-head h2 {
+        margin: 0;
+        font-size: 15px;
+        color: var(--moss-dark);
+      }
+
+      .history-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 0 0 auto;
+      }
+
+      .history-new,
+      .history-clear,
+      .history-toggle {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fffcf4;
+        color: var(--muted);
+        padding: 4px 9px;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .history-toggle {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        display: grid;
+        place-items: center;
+        color: var(--moss-dark);
+        font-size: 13px;
+      }
+
+      .history-toggle:hover,
+      .history-new:hover,
+      .history-clear:hover {
+        border-color: var(--moss);
+        background: var(--fern);
+        color: var(--moss-dark);
+      }
+
+      .history-list {
+        min-height: 160px;
+        overflow: auto;
+        display: grid;
+        align-content: start;
+        gap: 8px;
+        padding-right: 2px;
+      }
+
+      .history-empty {
+        padding: 18px 12px;
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+        text-align: center;
+      }
+
+      .history-item {
+        width: 100%;
+        text-align: left;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fffcf4;
+        padding: 10px;
+        cursor: pointer;
+        display: grid;
+        gap: 5px;
+      }
+
+      .history-item:hover { border-color: var(--moss); background: rgba(223,232,202,0.28); }
+      .history-item.active {
+        border-color: var(--moss-dark);
+        background: rgba(223,232,202,0.34);
+        box-shadow: inset 3px 0 0 var(--moss-dark);
+      }
+
+      .history-title-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: start;
+      }
+
+      .history-title {
+        font-size: 13px;
+        font-weight: 900;
+        color: var(--moss-dark);
+        line-height: 1.35;
+      }
+
+      .history-star {
+        border: none;
+        background: transparent;
+        color: var(--clay);
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        padding: 0 2px;
+      }
+
+      .history-meta, .history-route {
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .app-frame.history-collapsed .history-sidebar {
+        padding: 12px 8px;
+        background: rgba(255, 250, 240, 0.78);
+      }
+
+      .app-frame.history-collapsed .history-head {
+        display: grid;
+        justify-items: center;
+        gap: 10px;
+      }
+
+      .app-frame.history-collapsed .history-title-wrap h2,
+      .app-frame.history-collapsed .history-new,
+      .app-frame.history-collapsed .history-clear,
+      .app-frame.history-collapsed .history-list {
+        display: none;
+      }
+
+      .app-frame.history-collapsed .history-title-wrap {
+        justify-content: center;
+      }
+
+      .app-frame.history-collapsed .history-actions {
+        display: grid;
+        justify-items: center;
+      }
+
+      .app-frame.history-collapsed .history-toggle {
+        transform: rotate(180deg);
       }
 
       /* ---- Top Bar ---- */
@@ -616,6 +817,50 @@
 
       .weather-body { padding: 16px; }
 
+      .weather-result-summary {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+
+      .weather-result-summary .weather-count {
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .weather-recommendation,
+      .weather-notice {
+        margin-bottom: 14px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .weather-recommendation {
+        border: 1px solid rgba(80, 104, 62, 0.28);
+        background: rgba(223, 232, 202, 0.32);
+        color: var(--moss-dark);
+      }
+
+      .weather-notice {
+        border: 1px solid rgba(244, 198, 90, 0.48);
+        background: rgba(244, 198, 90, 0.12);
+        color: var(--ink);
+      }
+
+      .weather-recommendation strong,
+      .weather-notice strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
       .weather-empty {
         padding: 24px;
         text-align: center;
@@ -659,6 +904,19 @@
         font-weight: 800;
         color: var(--ink);
         margin-bottom: 8px;
+      }
+
+      .weather-card-main {
+        display: grid;
+        gap: 5px;
+      }
+
+      .weather-card-meta {
+        display: grid;
+        gap: 5px;
+        margin: 8px 0 10px;
+        color: var(--muted);
+        font-size: 12px;
       }
 
       .weather-icon {
@@ -839,10 +1097,8 @@
       }
 
       @media (max-width: 520px) {
-        .shell {
-          width: min(100% - 20px, 1280px);
-          padding-top: 18px;
-        }
+        .app-frame { width: min(100% - 20px, 1280px); }
+        .shell { padding-top: 18px; }
 
         .metrics { grid-template-columns: 1fr 1fr; }
         .mini-grid { grid-template-columns: 1fr; }
@@ -850,6 +1106,8 @@
         .weather-grid { grid-template-columns: 1fr; }
         .date-picker-row { flex-direction: column; align-items: stretch; }
         .date-picker-row input[type="date"] { width: 100%; }
+        .day-timeline { grid-auto-columns: minmax(240px, 82vw); }
+        .guide-weather-stats { grid-template-columns: 1fr; }
       }
 
       /* ---- Guide Form ---- */
@@ -954,13 +1212,43 @@
       .guide-section-body { padding: 16px; }
 
       /* ---- Day Timeline ---- */
-      .day-timeline { display: grid; gap: 14px; }
+      .day-timeline {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(280px, 360px);
+        gap: 14px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 2px 2px 12px;
+        scroll-snap-type: x proximity;
+      }
 
       .day-card {
+        min-width: 0;
         padding: 16px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: #fffcf4;
+        scroll-snap-align: start;
+      }
+
+      .day-card-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+
+      .day-badge {
+        flex: 0 0 auto;
+        min-width: 58px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: var(--moss-dark);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 900;
+        text-align: center;
       }
 
       .day-card h4 {
@@ -973,8 +1261,79 @@
       .day-meta span { font-size: 13px; color: var(--muted); }
       .day-meta span strong { color: var(--ink); }
 
+      .day-segments {
+        margin: 0 0 8px;
+        padding-left: 18px;
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .day-lodging {
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: rgba(223,232,202,0.3);
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+
+      .day-notes {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .itinerary-notes {
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
       /* ---- Transport Options ---- */
-      .transport-options { display: grid; gap: 12px; }
+      .transport-options { display: grid; gap: 14px; }
+
+      .transport-selector {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 6px;
+      }
+
+      .transport-choice {
+        flex: 0 0 auto;
+        min-width: 148px;
+        max-width: 220px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fffcf4;
+        color: var(--moss-dark);
+        padding: 10px 12px;
+        text-align: left;
+        cursor: pointer;
+        display: grid;
+        gap: 4px;
+      }
+
+      .transport-choice:hover { border-color: var(--moss); background: rgba(223,232,202,0.28); }
+
+      .transport-choice.active {
+        border-color: var(--moss-dark);
+        background: var(--moss-dark);
+        color: #fff9e8;
+      }
+
+      .transport-choice-title {
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .transport-choice-meta {
+        color: inherit;
+        opacity: 0.78;
+        font-size: 11px;
+        line-height: 1.45;
+      }
 
       .transport-option {
         padding: 14px;
@@ -982,6 +1341,9 @@
         border-radius: 8px;
         background: #fffcf4;
       }
+
+      .transport-option-panel { display: none; }
+      .transport-option-panel.active { display: block; }
 
       .transport-option h4 {
         margin: 0 0 8px;
@@ -1002,6 +1364,178 @@
         background: rgba(244, 198, 90, 0.12);
         font-size: 12px;
         color: var(--clay);
+      }
+
+      .guide-weather-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      .guide-weather-chip {
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fffcf4;
+      }
+
+      .guide-weather-chip span {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .guide-weather-chip strong {
+        display: block;
+        margin-top: 4px;
+        color: var(--ink);
+        font-size: 15px;
+      }
+
+      .guide-weather-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+      }
+
+      .guide-weather-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fffcf4;
+        overflow: hidden;
+      }
+
+      .guide-weather-card.has-risk {
+        border-color: rgba(166, 83, 43, 0.52);
+        background: rgba(244, 198, 90, 0.07);
+      }
+
+      .guide-weather-card-head {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: start;
+      }
+
+      .guide-weather-date {
+        font-weight: 900;
+        color: var(--moss-dark);
+        font-size: 14px;
+      }
+
+      .guide-weather-source {
+        flex-shrink: 0;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .guide-weather-card-body {
+        padding: 12px 14px 14px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .guide-weather-text {
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 800;
+      }
+
+      .guide-weather-detail {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.65;
+      }
+
+      .guide-weather-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .guide-weather-stat {
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: rgba(223,232,202,0.28);
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .guide-weather-stat strong {
+        display: block;
+        margin-top: 2px;
+        color: var(--ink);
+        font-size: 13px;
+      }
+
+      .guide-weather-risks {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--clay);
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      .decision-notes {
+        display: grid;
+        gap: 8px;
+      }
+
+      .decision-note {
+        padding: 10px 12px;
+        border: 1px solid rgba(166, 83, 43, 0.24);
+        border-radius: 8px;
+        background: rgba(244, 198, 90, 0.12);
+        color: var(--clay);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .reference-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .reference-item {
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fffcf4;
+      }
+
+      .reference-item h4 {
+        margin: 0 0 6px;
+        color: var(--moss-dark);
+        font-size: 15px;
+      }
+
+      .reference-item p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.65;
+      }
+
+      .reference-link {
+        display: inline-block;
+        margin-top: 6px;
+        color: var(--moss-dark);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .reference-list {
+        margin: 8px 0 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.7;
       }
 
       /* ---- Gear Checklist ---- */
@@ -1223,6 +1757,70 @@
       .poi-tab.active { color: var(--moss-dark); border-bottom-color: var(--moss-dark); }
       .poi-tab:hover { color: var(--moss-dark); }
 
+      .guide-poi-map-wrap {
+        display: grid;
+        gap: 10px;
+      }
+
+      .poi-workbench {
+        display: grid;
+        grid-template-columns: minmax(320px, 1.15fr) minmax(280px, 0.85fr);
+        gap: 16px;
+        align-items: stretch;
+      }
+
+      .poi-side-panel {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 12px;
+      }
+
+      #guide-poi-map {
+        min-height: 320px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #f3efe1;
+      }
+
+      .guide-poi-map-placeholder {
+        min-height: 180px;
+        display: grid;
+        place-items: center;
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        color: var(--muted);
+        background: rgba(255,252,244,0.72);
+        font-size: 13px;
+        text-align: center;
+        padding: 18px;
+      }
+
+      .poi-map-filters {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .poi-map-filter {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fffcf4;
+        color: var(--muted);
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .poi-map-filter.active {
+        color: #fff;
+        border-color: var(--moss-dark);
+        background: var(--moss-dark);
+      }
+
       .poi-list { display: grid; gap: 8px; }
 
       .poi-item {
@@ -1232,6 +1830,15 @@
         border: 1px solid var(--line);
         border-radius: 6px;
         background: #fffcf4;
+        transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+      }
+
+      .poi-item.has-coordinate { cursor: pointer; }
+      .poi-item.has-coordinate:hover,
+      .poi-item.active {
+        border-color: var(--moss);
+        background: rgba(223,232,202,0.35);
+        transform: translateY(-1px);
       }
 
       .poi-item .poi-name { font-weight: 700; font-size: 14px; }
@@ -1267,10 +1874,75 @@
         line-height: 1.8;
         color: var(--ink);
       }
+
+      @media (max-width: 980px) {
+        .app-frame {
+          width: min(100% - 24px, 760px);
+          grid-template-columns: 1fr;
+        }
+
+        .app-frame.history-collapsed {
+          grid-template-columns: 1fr;
+        }
+
+        .history-sidebar {
+          position: static;
+          max-height: 320px;
+          margin-top: 18px;
+        }
+
+        .app-frame.history-collapsed .history-sidebar {
+          padding: 18px;
+        }
+
+        .app-frame.history-collapsed .history-head {
+          display: flex;
+          justify-items: initial;
+        }
+
+      .app-frame.history-collapsed .history-title-wrap h2,
+      .app-frame.history-collapsed .history-new,
+      .app-frame.history-collapsed .history-clear,
+      .app-frame.history-collapsed .history-list {
+        display: grid;
+      }
+
+      .app-frame.history-collapsed .history-title-wrap h2,
+      .app-frame.history-collapsed .history-new,
+      .app-frame.history-collapsed .history-clear {
+        display: block;
+      }
+
+        .app-frame.history-collapsed .history-toggle {
+          transform: rotate(180deg);
+        }
+
+        .poi-workbench {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
-    <main class="shell">
+    <div class="app-frame">
+      <section class="history-sidebar" aria-label="历史攻略">
+        <div class="history-head">
+          <div class="history-title-wrap">
+            <span class="history-mark" aria-hidden="true">T</span>
+            <h2>历史攻略</h2>
+          </div>
+          <div class="history-actions">
+            <button class="history-new" id="history-new-route" type="button">新路线</button>
+            <button class="history-clear" id="history-clear" type="button">清空</button>
+            <button class="history-toggle" id="history-toggle" type="button" aria-label="收起历史攻略" aria-expanded="true" title="收起历史攻略">‹</button>
+          </div>
+        </div>
+        <div class="history-list" id="history-list">
+          <div class="history-empty">生成攻略后会自动保存在这里。</div>
+        </div>
+      </section>
+
+      <main class="shell">
       <header class="topbar">
         <div class="brand">
           <div class="eyebrow">Trailer</div>
@@ -1326,7 +1998,8 @@
           </div>
         </div>
       </div>
-    </main>
+      </main>
+    </div>
 
     <script>
       // ---- DOM refs ----
@@ -1338,16 +2011,28 @@
       const fileSizeDisplay = document.querySelector("#file-size-display");
       const btnRemoveFile = document.querySelector("#btn-remove-file");
       const parseResults = document.querySelector("#parse-results");
+      const historyListEl = document.querySelector("#history-list");
+      const historyNewRouteBtn = document.querySelector("#history-new-route");
+      const historyClearBtn = document.querySelector("#history-clear");
+      const appFrameEl = document.querySelector(".app-frame");
+      const historyToggleBtn = document.querySelector("#history-toggle");
 
       // ---- AMap state ----
       let amapInstance = null;
+      let guidePoiMap = null;
+      let guidePoiInfoWindow = null;
+      let guidePoiMarkers = {};
+      let guidePoiActiveFilters = new Set(["lodging", "food"]);
       let amapKey = null;
       let amapLoaded = false;
       let elevationChart = null;
       let lastKmlData = null;  // Store parsed KML data for weather queries
       let lastKmlFile = null;   // Store the original KML file for guide generation
       let lastParseHTML = null; // Store parse results HTML for back navigation
+      const HISTORY_KEY = "trailer.guideHistory.v1";
+      const HISTORY_COLLAPSED_KEY = "trailer.historyCollapsed.v1";
       const ROUTE_COLORS = ["#50683e", "#a6532b", "#2e6b9e", "#7b4fa6", "#c47a1e"];
+      const EMPTY_PARSE_HTML = `<div class="empty" id="parse-empty"><div><div class="empty-mark">△</div><h2>等待上传</h2><p>请上传 KML 轨迹文件，系统将自动解析并展示路线数据。</p></div></div>`;
 
       // ---- Module Tabs ----
       document.querySelectorAll(".module-tab").forEach(tab => {
@@ -1440,12 +2125,7 @@
       });
 
       btnRemoveFile.addEventListener("click", () => {
-        hideFileInfo();
-        lastKmlData = null;
-        lastKmlFile = null;
-        parseResults.innerHTML = `<div class="empty" id="parse-empty"><div><div class="empty-mark">△</div><h2>等待上传</h2><p>请上传 KML 轨迹文件，系统将自动解析并展示路线数据。</p></div></div>`;
-        if (amapInstance) amapInstance.clearMap();
-        if (elevationChart) { elevationChart.destroy(); elevationChart = null; }
+        resetRouteWorkspace();
       });
 
       // ---- Core: Parse KML ----
@@ -1539,14 +2219,14 @@
         // Store data for weather queries
         lastKmlData = data;
 
-        // Set up default date range (today + 3 days)
+        // Set up default date range (today + 29 days)
         const today = new Date();
         const startDateEl = document.querySelector("#weather-start-date");
         const endDateEl = document.querySelector("#weather-end-date");
         if (startDateEl) startDateEl.value = formatDateISO(today);
         if (endDateEl) {
           const end = new Date(today);
-          end.setDate(end.getDate() + 3);
+          end.setDate(end.getDate() + 29);
           endDateEl.value = formatDateISO(end);
         }
 
@@ -1783,7 +2463,7 @@
               </div>
             </div>
             <div id="weather-body" class="weather-body">
-              <div class="weather-empty">选择出行时间段，点击「查询天气」获取路线区域天气预报</div>
+              <div class="weather-empty">选择出行时间段，点击「查询天气」筛选适合出行的日期</div>
             </div>
           </div>
         `;
@@ -1835,20 +2515,40 @@
 
         const forecasts = data.forecasts || [];
         if (!forecasts.length) {
-          weatherBody.innerHTML = `<div class="weather-empty">所选日期范围内暂无天气预报数据</div>`;
+          const warnings = data.warnings || [];
+          const notice = warnings.length
+            ? `<div class="weather-notice"><strong>数据提示</strong>${warnings.map(escapeHtml).join('<br>')}</div>`
+            : '';
+          weatherBody.innerHTML = `${notice}<div class="weather-empty">所选日期范围内暂无天气预报数据</div>`;
           return;
         }
 
         // Summary: count suitable days
         const suitableDays = forecasts.filter(f => f.suitability_label === '适宜');
-          const marginalDays = forecasts.filter(f => f.suitability_label === '一般');
+        const marginalDays = forecasts.filter(f => f.suitability_label === '一般');
         const unsuitableDays = forecasts.filter(f => f.suitability_label === '不宜');
 
         let html = '';
 
+        const warnings = data.warnings || [];
+        if (warnings.length) {
+          html += `<div class="weather-notice"><strong>数据提示</strong>${warnings.map(escapeHtml).join('<br>')}</div>`;
+        }
+
+        const sourceLabel = (data.data_sources || []).map(weatherSourceLabel).join('、') || '天气服务';
+        const bestDates = data.suitable_dates || suitableDays.map(f => f.date);
+        const backupDates = data.marginal_dates || marginalDays.map(f => f.date);
+        if (bestDates.length) {
+          html += `<div class="weather-recommendation"><strong>优先考虑</strong>${bestDates.map(formatDateCN).join('、')}。数据源：${escapeHtml(sourceLabel)}</div>`;
+        } else if (backupDates.length) {
+          html += `<div class="weather-recommendation"><strong>备选日期</strong>暂无明确适宜日期，可谨慎评估 ${backupDates.slice(0, 8).map(formatDateCN).join('、')}。数据源：${escapeHtml(sourceLabel)}</div>`;
+        } else {
+          html += `<div class="weather-notice"><strong>不建议出行</strong>当前区间没有筛出适宜或一般日期，建议调整时间窗口或降低路线强度。</div>`;
+        }
+
         // Summary bar
-        html += `<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">`;
-        html += `<span style="font-size:12px;color:var(--muted)">共 ${forecasts.length} 天预报:</span>`;
+        html += `<div class="weather-result-summary">`;
+        html += `<span class="weather-count">共 ${forecasts.length} 天预报</span>`;
         if (suitableDays.length) html += `<span class="suitability-tag suitable">${suitableDays.length} 天适宜</span>`;
         if (marginalDays.length) html += `<span class="suitability-tag marginal">${marginalDays.length} 天一般</span>`;
         if (unsuitableDays.length) html += `<span class="suitability-tag unsuitable">${unsuitableDays.length} 天不宜</span>`;
@@ -1863,9 +2563,17 @@
             <div class="weather-card ${suitClass}">
               <div class="weather-date">${formatDateCN(f.date)}</div>
               <div class="weather-icon">${icon}</div>
-              <div class="weather-desc">${escapeHtml(f.day_weather)} → ${escapeHtml(f.night_weather)}</div>
-              <div class="weather-temp">${escapeHtml(f.night_temp)}°C ~ ${escapeHtml(f.day_temp)}°C</div>
-              <div class="weather-wind">${escapeHtml(f.day_wind)}风 ${escapeHtml(f.day_power)}级</div>
+              <div class="weather-card-main">
+                <div class="weather-desc">${escapeHtml(f.day_weather)} → ${escapeHtml(f.night_weather)}</div>
+                <div class="weather-card-meta">
+                  <span>温度：${escapeHtml(f.night_temp)}°C ~ ${escapeHtml(f.day_temp)}°C</span>
+                  <span>风力：${escapeHtml(f.day_wind)}风 ${escapeHtml(f.day_power)}级</span>
+                  ${f.precipitation_probability != null ? `<span>降水概率：${escapeHtml(f.precipitation_probability)}%</span>` : ''}
+                  ${f.precipitation_mm != null ? `<span>降水量：${escapeHtml(formatMetric(f.precipitation_mm, 'mm'))}</span>` : ''}
+                  ${f.wind_gust_kmh != null ? `<span>阵风：${escapeHtml(formatMetric(f.wind_gust_kmh, 'km/h'))}</span>` : ''}
+                  ${(f.risk_notes || []).length ? `<span>${escapeHtml(f.risk_notes[0])}</span>` : ''}
+                </div>
+              </div>
               <span class="suitability-tag ${suitClass}">${escapeHtml(f.suitability_label)}出行</span>
             </div>
           `;
@@ -1873,6 +2581,20 @@
         html += `</div>`;
 
         weatherBody.innerHTML = html;
+      }
+
+      function weatherSourceLabel(source) {
+        if (!source) return '天气服务';
+        if (source.includes('seasonal')) return 'Open-Meteo 长周期趋势';
+        if (source.includes('open-meteo')) return 'Open-Meteo 预报';
+        if (source.includes('amap')) return '高德天气';
+        return source;
+      }
+
+      function formatMetric(value, unit) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return `${value} ${unit}`;
+        return `${number.toFixed(number % 1 === 0 ? 0 : 1)} ${unit}`;
       }
 
       function weatherIcon(weather) {
@@ -1931,10 +2653,66 @@
       // ---- Boot ----
       checkHealth();
       loadMapConfig();
+      setHistoryCollapsed(localStorage.getItem(HISTORY_COLLAPSED_KEY) === 'true');
+      renderGuideHistory();
+      if (historyToggleBtn) {
+        historyToggleBtn.addEventListener('click', () => {
+          const next = !appFrameEl?.classList.contains('history-collapsed');
+          setHistoryCollapsed(next);
+          localStorage.setItem(HISTORY_COLLAPSED_KEY, String(next));
+        });
+      }
+      window.addEventListener('resize', () => {
+        setHistoryCollapsed(localStorage.getItem(HISTORY_COLLAPSED_KEY) === 'true');
+      });
+      if (historyClearBtn) {
+        historyClearBtn.addEventListener('click', () => {
+          localStorage.removeItem(HISTORY_KEY);
+          renderGuideHistory();
+        });
+      }
+      if (historyNewRouteBtn) {
+        historyNewRouteBtn.addEventListener('click', resetRouteWorkspace);
+      }
 
       // =============================================
       // Guide Generation Functions
       // =============================================
+
+      function setHistoryCollapsed(collapsed) {
+        if (!appFrameEl || !historyToggleBtn) return;
+        const canCollapse = !window.matchMedia('(max-width: 980px)').matches;
+        const applied = Boolean(collapsed) && canCollapse;
+        appFrameEl.classList.toggle('history-collapsed', applied);
+        historyToggleBtn.setAttribute('aria-expanded', String(!applied));
+        historyToggleBtn.setAttribute('aria-label', applied ? '展开历史攻略' : '收起历史攻略');
+        historyToggleBtn.title = applied ? '展开历史攻略' : '收起历史攻略';
+      }
+
+      function resetRouteWorkspace() {
+        hideFileInfo();
+        lastKmlData = null;
+        lastKmlFile = null;
+        lastParseHTML = null;
+        window.__lastGuideData = null;
+        guidePoiMap = null;
+        guidePoiInfoWindow = null;
+        guidePoiMarkers = {};
+        guidePoiActiveFilters = new Set(["lodging", "food"]);
+        parseResults.innerHTML = EMPTY_PARSE_HTML;
+        document.querySelectorAll(".module-tab").forEach(tab => {
+          tab.classList.toggle("active", tab.dataset.module === "parse");
+        });
+        document.querySelectorAll(".module-content").forEach(content => {
+          content.classList.toggle("active", content.id === "module-parse");
+        });
+        document.querySelectorAll(".history-item").forEach(btn => btn.classList.remove("active"));
+        if (amapInstance) amapInstance.clearMap();
+        if (elevationChart) { elevationChart.destroy(); elevationChart = null; }
+        const overlay = document.getElementById('guide-loading-overlay');
+        if (overlay) overlay.remove();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
 
       function appendGuideForm(data) {
         const firstRoute = data.routes[0];
@@ -1981,6 +2759,14 @@
             <div class="form-field" style="margin-top:12px">
               <label>路线描述（可选）</label>
               <textarea id="guide-route-text" placeholder="补充说明你的路线计划或特殊需求..."></textarea>
+            </div>
+            <div class="form-field" style="margin-top:12px">
+              <label>参考攻略链接（可选）</label>
+              <textarea id="guide-reference-links" placeholder="粘贴公开攻略链接，每行一个。只作为补充参考，不影响主攻略。"></textarea>
+            </div>
+            <div class="form-field" style="margin-top:12px">
+              <label>参考攻略摘录（可选）</label>
+              <textarea id="guide-reference-notes" placeholder="也可以直接粘贴你整理的攻略片段、住宿/补给/交通线索。"></textarea>
             </div>
             <button class="btn-generate" id="btn-generate-guide">生成攻略</button>
           </div>
@@ -2111,6 +2897,8 @@
         const fitness = document.getElementById('guide-fitness').value;
         const preferences = document.getElementById('guide-preferences').value.trim();
         const routeText = document.getElementById('guide-route-text').value.trim();
+        const referenceLinks = document.getElementById('guide-reference-links').value.trim();
+        const referenceNotes = document.getElementById('guide-reference-notes').value.trim();
 
         if (!destination) {
           alert('请填写目的地名称');
@@ -2129,6 +2917,8 @@
         if (fitness) body.append('fitness_level', fitness);
         if (preferences) body.append('preferences', preferences);
         if (routeText) body.append('route_text', routeText);
+        if (referenceLinks) body.append('reference_links', referenceLinks);
+        if (referenceNotes) body.append('reference_notes', referenceNotes);
         body.append('route_file', lastKmlFile);
 
         try {
@@ -2149,10 +2939,19 @@
       }
 
       // ---- Render Guide Result ----
-      function renderGuideResult(guide) {
+      function renderGuideResult(guide, options = {}) {
+        const shouldSaveHistory = options.saveHistory !== false;
         // Remove any existing guide section
         const existingGuide = document.getElementById('guide-result-section');
         if (existingGuide) existingGuide.remove();
+        guidePoiMap = null;
+        guidePoiInfoWindow = null;
+        guidePoiMarkers = {};
+        guidePoiActiveFilters = new Set(["lodging", "food"]);
+        window.__lastGuideData = guide;
+        if (shouldSaveHistory) {
+          saveGuideHistory(guide);
+        }
 
         // Hide the guide form
         const guideForm = document.getElementById('guide-form');
@@ -2167,6 +2966,19 @@
           <h2 style="margin:0;font-size:24px;color:var(--moss-dark);font-family:Georgia,serif">综合徒步攻略</h2>
         </div>`;
 
+        const decisionNotes = [
+          ...(guide.clarifying_questions || []).map(q => `建议补充：${q}`),
+          ...(guide.validation_notes || []),
+        ];
+        if (decisionNotes.length) {
+          html += `<div class="guide-section">
+            <div class="guide-section-header"><h3>需要补充与验证</h3></div>
+            <div class="guide-section-body">
+              <div class="decision-notes">${decisionNotes.map(n => `<div class="decision-note">${escapeHtml(n)}</div>`).join('')}</div>
+            </div>
+          </div>`;
+        }
+
         // 1. Summary
         html += `<div class="guide-section">
           <div class="guide-section-header"><h3>攻略概览</h3></div>
@@ -2175,20 +2987,37 @@
 
         // 2. Route Overview metrics
         if (guide.route_candidates && guide.route_candidates.length > 0) {
-          const best = guide.route_candidates[0];
-          const elev = best.analysis.elevation;
+          const rcs = guide.route_candidates;
+          const totalDist = rcs.reduce((s, c) => s + (c.analysis.distance_km || 0), 0);
+          const totalDur = rcs.reduce((s, c) => s + (c.analysis.estimated_duration_hours || 0), 0);
+          const totalAscent = rcs.reduce((s, c) => s + ((c.analysis.elevation && c.analysis.elevation.ascent_m) || 0), 0);
+          const totalDescent = rcs.reduce((s, c) => s + ((c.analysis.elevation && c.analysis.elevation.descent_m) || 0), 0);
+          const worstRisk = rcs.some(c => c.analysis.risk_level === 'high') ? 'high' : rcs.some(c => c.analysis.risk_level === 'medium') ? 'medium' : 'low';
+          const multiLabel = rcs.length > 1 ? `（${rcs.length} 段轨迹）` : '';
           html += `<div class="guide-section">
-            <div class="guide-section-header"><h3>路线概览</h3></div>
+            <div class="guide-section-header"><h3>路线概览${multiLabel}</h3></div>
             <div class="guide-section-body">
               <div class="metrics">
-                ${metricCard('距离', best.analysis.distance_km.toFixed(1) + ' km', '')}
-                ${metricCard('预估耗时', best.analysis.estimated_duration_hours.toFixed(1) + ' h', '')}
-                ${elev.ascent_m != null ? metricCard('累计爬升', elev.ascent_m.toFixed(0) + ' m', '') : ''}
-                ${elev.descent_m != null ? metricCard('累计下降', elev.descent_m.toFixed(0) + ' m', '') : ''}
-                ${metricCard('风险等级', best.analysis.risk_level === 'high' ? '高风险' : best.analysis.risk_level === 'medium' ? '中等' : '低风险', '')}
-              </div>
-            </div>
-          </div>`;
+                ${metricCard('总距离', totalDist.toFixed(1) + ' km', '')}
+                ${metricCard('预估耗时', totalDur.toFixed(1) + ' h', '')}
+                ${totalAscent ? metricCard('累计爬升', totalAscent.toFixed(0) + ' m', '') : ''}
+                ${totalDescent ? metricCard('累计下降', totalDescent.toFixed(0) + ' m', '') : ''}
+                ${metricCard('风险等级', worstRisk === 'high' ? '高风险' : worstRisk === 'medium' ? '中等' : '低风险', '')}
+              </div>`;
+          if (rcs.length > 1) {
+            html += `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">`;
+            rcs.forEach((c, idx) => {
+              const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
+              const e = c.analysis.elevation || {};
+              html += `<div style="flex:1;min-width:140px;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,0.03);border-left:3px solid ${color};font-size:12px;line-height:1.6">
+                <div style="font-weight:600;color:${color}">${escapeHtml(c.route.name || '路线 ' + (idx+1))}</div>
+                <div>${Number(c.analysis.distance_km).toFixed(1)} km · ${Number(c.analysis.estimated_duration_hours).toFixed(1)} h</div>
+                ${e.ascent_m != null ? `<div>+${e.ascent_m.toFixed(0)} m / -${(e.descent_m || 0).toFixed(0)} m</div>` : ''}
+              </div>`;
+            });
+            html += `</div>`;
+          }
+          html += `</div></div>`;
         }
 
         // 3. Itinerary
@@ -2199,62 +3028,36 @@
               <div class="day-timeline">`;
           guide.itinerary.days.forEach(day => {
             html += `<div class="day-card">
-              <h4>${escapeHtml(day.title)}</h4>
+              <div class="day-card-head">
+                <span class="day-badge">Day ${escapeHtml(day.day_number)}</span>
+                <h4>${escapeHtml(stripDayPrefix(day.title, day.day_number))}</h4>
+              </div>
               <div class="day-meta">
                 ${day.date ? `<span>📅 ${escapeHtml(day.date)}</span>` : ''}
                 ${day.distance_km != null ? `<span>📏 <strong>${day.distance_km} km</strong></span>` : ''}
                 ${day.elevation_gain_m != null ? `<span>⛰ <strong>+${day.elevation_gain_m} m</strong></span>` : ''}
               </div>
-              ${day.key_segments.length ? `<ul style="margin:0 0 8px;padding-left:18px;font-size:13px;color:var(--muted);line-height:1.7">${day.key_segments.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>` : ''}
-              ${day.lodging_suggestion ? `<div style="padding:6px 10px;border-radius:6px;background:rgba(223,232,202,0.3);font-size:13px;margin-bottom:8px">🏨 ${escapeHtml(day.lodging_suggestion)}</div>` : ''}
-              ${day.notes.length ? `<div style="font-size:12px;color:var(--muted)">${day.notes.map(n => '💡 ' + escapeHtml(n)).join(' · ')}</div>` : ''}
+              ${day.key_segments.length ? `<ul class="day-segments">${day.key_segments.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>` : ''}
+              ${day.lodging_suggestion ? `<div class="day-lodging">🏨 ${escapeHtml(day.lodging_suggestion)}</div>` : ''}
+              ${day.notes.length ? `<div class="day-notes">${day.notes.map(n => '💡 ' + escapeHtml(n)).join(' · ')}</div>` : ''}
             </div>`;
           });
           html += `</div>`;
           if (guide.itinerary.notes.length) {
-            html += `<div style="margin-top:12px;font-size:12px;color:var(--muted)">${guide.itinerary.notes.map(n => escapeHtml(n)).join(' · ')}</div>`;
+            html += `<div class="itinerary-notes">${guide.itinerary.notes.map(n => escapeHtml(n)).join(' · ')}</div>`;
           }
           html += `</div></div>`;
         }
 
         // 4. Transport Plan
         if (guide.transport_plan && guide.transport_plan.options.length > 0) {
-          const tp = guide.transport_plan;
-          html += `<div class="guide-section">
-            <div class="guide-section-header"><h3>交通方案 · ${escapeHtml(tp.start_city)} → ${escapeHtml(tp.destination_name)}</h3></div>
-            <div class="guide-section-body">
-              <div class="transport-options">`;
-          tp.options.forEach(opt => {
-            const modeIcon = opt.mode === 'driving' ? '🚗' : opt.mode === 'transit' ? '🚄' : '🚶';
-            const modeLabel = opt.mode === 'driving' ? '驾车' : opt.mode === 'transit' ? '公共交通' : '综合';
-            html += `<div class="transport-option">
-              <h4>${modeIcon} ${modeLabel}</h4>
-              <div class="transport-meta">
-                ${opt.duration_hours != null ? `<span>⏱ <strong>${opt.duration_hours} 小时</strong></span>` : ''}
-                ${opt.distance_km != null ? `<span>📏 <strong>${opt.distance_km} km</strong></span>` : ''}
-                ${opt.cost_estimate ? `<span>💰 ${escapeHtml(opt.cost_estimate)}</span>` : ''}
-              </div>
-              ${opt.steps.length ? `<ol class="transport-steps">${opt.steps.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ol>` : ''}
-              ${opt.tip ? `<div class="transport-tip">⚠ ${escapeHtml(opt.tip)}</div>` : ''}
-            </div>`;
-          });
-          html += `</div></div></div>`;
+          html += renderTransportPlan(guide.transport_plan);
         }
 
-        // 5. Weather (reuse data from travel_research or re-query)
-        if (guide.travel_research && guide.travel_research.weather.length > 0) {
-          html += `<div class="guide-section">
-            <div class="guide-section-header"><h3>天气信息</h3></div>
-            <div class="guide-section-body">
-              <div class="weather-grid">`;
-          guide.travel_research.weather.forEach(w => {
-            html += `<div class="weather-card suitable">
-              <div class="weather-desc">${escapeHtml(w.title)}</div>
-              <div class="weather-temp" style="margin-top:6px">${escapeHtml(w.detail)}</div>
-              <span class="suitability-tag marginal" style="margin-top:8px">来源: ${escapeHtml(w.source)}</span>
-            </div>`;
-          });
-          html += `</div></div></div>`;
+        // 5. Weather (reuse detailed tool output or travel_research fallback)
+        const weatherCards = normalizeWeatherCards(guide);
+        if (weatherCards.length > 0) {
+          html += renderGuideWeatherSection(weatherCards);
         }
 
         // 6. Lodging / Food / Supply (POI tabs)
@@ -2262,17 +3065,32 @@
           const tr = guide.travel_research;
           const hasAny = (tr.lodging && tr.lodging.length) || (tr.food && tr.food.length) || (tr.supply && tr.supply.length);
           if (hasAny) {
+            const hasMapPOI = hasCoordinatePOI(tr.lodging) || hasCoordinatePOI(tr.food) || hasCoordinatePOI(tr.supply);
             html += `<div class="guide-section">
               <div class="guide-section-header"><h3>周边信息</h3></div>
               <div class="guide-section-body">
-                <div class="poi-tabs">
-                  <button class="poi-tab active" data-poi="lodging">住宿 (${tr.lodging ? tr.lodging.length : 0})</button>
-                  <button class="poi-tab" data-poi="food">餐饮 (${tr.food ? tr.food.length : 0})</button>
-                  <button class="poi-tab" data-poi="supply">补给 (${tr.supply ? tr.supply.length : 0})</button>
+                <div class="poi-workbench">
+                  <div class="guide-poi-map-wrap">
+                    ${hasMapPOI ? `<div id="guide-poi-map"></div>` : `<div class="guide-poi-map-placeholder">暂无可定位的周边点位，已保留列表信息供出发前核对。</div>`}
+                  </div>
+                  <div class="poi-side-panel">
+                    <div class="poi-map-filters">
+                      <button class="poi-map-filter active" data-poi-filter="lodging">住宿</button>
+                      <button class="poi-map-filter active" data-poi-filter="food">餐饮</button>
+                      <button class="poi-map-filter" data-poi-filter="supply">补给</button>
+                    </div>
+                    <div>
+                      <div class="poi-tabs">
+                        <button class="poi-tab active" data-poi="lodging">住宿 (${tr.lodging ? tr.lodging.length : 0})</button>
+                        <button class="poi-tab" data-poi="food">餐饮 (${tr.food ? tr.food.length : 0})</button>
+                        <button class="poi-tab" data-poi="supply">补给 (${tr.supply ? tr.supply.length : 0})</button>
+                      </div>
+                      <div class="poi-list" id="poi-lodging">${renderPOIList(tr.lodging || [], 'lodging')}</div>
+                      <div class="poi-list" id="poi-food" style="display:none">${renderPOIList(tr.food || [], 'food')}</div>
+                      <div class="poi-list" id="poi-supply" style="display:none">${renderPOIList(tr.supply || [], 'supply')}</div>
+                    </div>
+                  </div>
                 </div>
-                <div class="poi-list" id="poi-lodging">${renderPOIList(tr.lodging || [])}</div>
-                <div class="poi-list" id="poi-food" style="display:none">${renderPOIList(tr.food || [])}</div>
-                <div class="poi-list" id="poi-supply" style="display:none">${renderPOIList(tr.supply || [])}</div>
               </div>
             </div>`;
           }
@@ -2348,7 +3166,12 @@
           </div>`;
         }
 
-        // 10. Warnings & Disclaimer
+        // 10. User supplied guide references (supplemental only)
+        if (guide.reference_research) {
+          html += renderReferenceResearch(guide.reference_research);
+        }
+
+        // 11. Warnings & Disclaimer
         if (guide.warnings && guide.warnings.length > 0) {
           html += `<div style="margin-top:8px">
             ${guide.warnings.map(w => `<div class="safety-warning" style="background:rgba(244,198,90,0.1);border-color:rgba(244,198,90,0.36);color:var(--clay)">⚠ ${escapeHtml(w)}</div>`).join('')}
@@ -2391,14 +3214,259 @@
             document.querySelectorAll('.poi-list').forEach(l => l.style.display = 'none');
             const target = document.getElementById('poi-' + tab.dataset.poi);
             if (target) target.style.display = 'grid';
+            activatePoiFilter(tab.dataset.poi);
+          });
+        });
+
+        document.querySelectorAll('.poi-map-filter').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const category = btn.dataset.poiFilter;
+            if (!category) return;
+            if (guidePoiActiveFilters.has(category) && guidePoiActiveFilters.size > 1) {
+              guidePoiActiveFilters.delete(category);
+              btn.classList.remove('active');
+            } else {
+              guidePoiActiveFilters.add(category);
+              btn.classList.add('active');
+            }
+            renderGuidePoiOverlays(guide);
+          });
+        });
+
+        document.querySelectorAll('.poi-item.has-coordinate').forEach(item => {
+          item.addEventListener('click', () => {
+            focusGuidePoi(item.dataset.poiCategory, Number(item.dataset.poiIndex));
+          });
+        });
+
+        bindTransportSelector(document.getElementById('guide-result-section'));
+        initGuidePoiMap(guide);
+      }
+
+      function renderTransportPlan(tp) {
+        const options = tp.options || [];
+        const buttons = options.map((opt, index) => {
+          const mode = transportModeMeta(opt.mode);
+          const summary = transportChoiceSummary(opt);
+          return `<button class="transport-choice${index === 0 ? ' active' : ''}" type="button" data-transport-index="${index}">
+            <span class="transport-choice-title">${mode.icon} ${escapeHtml(mode.label)}</span>
+            <span class="transport-choice-meta">${escapeHtml(summary || '查看方案详情')}</span>
+          </button>`;
+        }).join('');
+
+        const panels = options.map((opt, index) => {
+          const mode = transportModeMeta(opt.mode);
+          return `<div class="transport-option transport-option-panel${index === 0 ? ' active' : ''}" data-transport-panel="${index}">
+            <h4>${mode.icon} ${escapeHtml(mode.label)}</h4>
+            <div class="transport-meta">
+              ${opt.duration_hours != null ? `<span>⏱ <strong>${escapeHtml(opt.duration_hours)} 小时</strong></span>` : ''}
+              ${opt.distance_km != null ? `<span>📏 <strong>${escapeHtml(opt.distance_km)} km</strong></span>` : ''}
+              ${opt.price_estimate ? `<span>💰 ${escapeHtml(opt.price_estimate)}</span>` : opt.cost_estimate ? `<span>💰 ${escapeHtml(opt.cost_estimate)}</span>` : ''}
+              ${opt.requires_user_verification ? `<span>需人工核验</span>` : ''}
+            </div>
+            ${opt.steps && opt.steps.length ? `<ol class="transport-steps">${opt.steps.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ol>` : ''}
+            ${opt.booking_hint ? `<div class="transport-tip">订票提示：${escapeHtml(opt.booking_hint)}</div>` : ''}
+            ${opt.tip ? `<div class="transport-tip">⚠ ${escapeHtml(opt.tip)}</div>` : ''}
+          </div>`;
+        }).join('');
+
+        return `<div class="guide-section">
+          <div class="guide-section-header"><h3>交通方案 · ${escapeHtml(tp.start_city)} → ${escapeHtml(tp.destination_name)}</h3></div>
+          <div class="guide-section-body">
+            <div class="transport-options">
+              <div class="transport-selector" role="tablist" aria-label="交通方案选择">${buttons}</div>
+              <div class="transport-panels">${panels}</div>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      function bindTransportSelector(root) {
+        const scope = root || document;
+        scope.querySelectorAll('.transport-selector').forEach(selector => {
+          const section = selector.closest('.transport-options');
+          if (!section) return;
+          selector.querySelectorAll('.transport-choice').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const index = btn.dataset.transportIndex;
+              selector.querySelectorAll('.transport-choice').forEach(item => item.classList.toggle('active', item === btn));
+              section.querySelectorAll('.transport-option-panel').forEach(panel => {
+                panel.classList.toggle('active', panel.dataset.transportPanel === index);
+              });
+            });
           });
         });
       }
 
-      function renderPOIList(items) {
+      function transportModeMeta(mode) {
+        return {
+          driving: { icon: '🚗', label: '自驾' },
+          flight: { icon: '✈', label: '机票' },
+          rail: { icon: '🚄', label: '高铁/火车' },
+          charter: { icon: '🚐', label: '包车/接驳' },
+          mixed: { icon: '⌁', label: '综合' },
+          transit: { icon: '🚄', label: '公共交通' },
+        }[mode] || { icon: '⌁', label: mode || '交通方案' };
+      }
+
+      function transportChoiceSummary(opt) {
+        const parts = [];
+        if (opt.duration_hours != null) parts.push(`${opt.duration_hours} 小时`);
+        if (opt.distance_km != null) parts.push(`${opt.distance_km} km`);
+        if (opt.price_estimate || opt.cost_estimate) parts.push(opt.price_estimate || opt.cost_estimate);
+        return parts.join(' · ');
+      }
+
+      function renderReferenceResearch(ref) {
+        const items = ref.items || [];
+        const notes = ref.lodging_supply_transport_notes || [];
+        const risks = ref.risk_notes || [];
+        const checks = ref.verification_items || [];
+        const warnings = ref.warnings || [];
+        const itemCards = items.map(item => `
+          <article class="reference-item">
+            <h4>${escapeHtml(item.title || '参考攻略')}</h4>
+            <p>${escapeHtml(item.summary || '已读取用户提供的参考材料。')}</p>
+            ${item.url ? `<a class="reference-link" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">查看来源</a>` : ''}
+            ${renderCompactReferenceList('可借鉴线索', [
+              ...(item.route_clues || []),
+              ...(item.lodging_clues || []),
+              ...(item.supply_clues || []),
+              ...(item.transport_clues || []),
+            ])}
+            ${renderCompactReferenceList('风险提醒', item.risk_notes || [])}
+          </article>
+        `).join('');
+
+        return `<div class="guide-section">
+          <div class="guide-section-header"><h3>参考攻略补充</h3></div>
+          <div class="guide-section-body">
+            ${ref.supplemental_summary ? `<div class="guide-summary" style="padding:0 0 12px">${escapeHtml(ref.supplemental_summary)}</div>` : ''}
+            ${itemCards ? `<div class="reference-grid">${itemCards}</div>` : ''}
+            ${renderCompactReferenceList('补充规划线索', [...(ref.itinerary_suggestions || []), ...notes])}
+            ${renderCompactReferenceList('参考风险提醒', risks)}
+            ${renderCompactReferenceList('待核验事项', checks)}
+            ${warnings.length ? `<div style="margin-top:12px">${warnings.map(w => `<div class="decision-note">${escapeHtml(w)}</div>`).join('')}</div>` : ''}
+          </div>
+        </div>`;
+      }
+
+      function renderCompactReferenceList(title, items) {
+        const clean = [...new Set((items || []).filter(Boolean))].slice(0, 6);
+        if (!clean.length) return '';
+        return `<p class="section-title" style="margin-top:12px">${escapeHtml(title)}</p><ul class="reference-list">${clean.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+      }
+
+      function normalizeWeatherCards(guide) {
+        const dedupeCards = cards => {
+          const seen = new Set();
+          return cards.filter(card => {
+            const key = [
+              card.date || '',
+              card.source || '',
+              card.weatherText || '',
+              card.detail || '',
+              card.minTemp ?? '',
+              card.maxTemp ?? '',
+              card.precipitation ?? '',
+              card.wind ?? '',
+            ].join('|');
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        };
+
+        if (guide.weather_details && guide.weather_details.length) {
+          return dedupeCards(guide.weather_details.map(w => ({
+            title: w.title || '路线区域天气',
+            date: w.date || '',
+            weatherText: w.weather_text || w.title || '路线区域天气',
+            detail: w.detail || '',
+            source: w.source || 'unknown',
+            maxTemp: w.max_temp_c,
+            minTemp: w.min_temp_c,
+            precipitation: w.precipitation_probability,
+            wind: w.max_wind_kmh,
+            gust: w.wind_gust_kmh,
+            humidity: w.humidity_percent,
+            riskNotes: w.hiking_risk_notes || [],
+          })));
+        }
+
+        const fallback = guide.travel_research && guide.travel_research.weather ? guide.travel_research.weather : [];
+        return dedupeCards(fallback.map(w => ({
+          title: w.title || '路线区域天气',
+          date: '',
+          weatherText: w.metadata?.weather_text || w.title || '路线区域天气',
+          detail: w.detail || '',
+          source: w.source || 'static',
+          maxTemp: w.metadata?.max_temp_c,
+          minTemp: w.metadata?.min_temp_c,
+          precipitation: w.metadata?.precipitation_probability,
+          wind: w.metadata?.max_wind_kmh,
+          gust: w.metadata?.wind_gust_kmh,
+          humidity: w.metadata?.humidity_percent,
+          riskNotes: w.metadata?.hiking_risk_notes || [],
+        })));
+      }
+
+      function renderGuideWeatherSection(cards) {
+        const riskCount = cards.reduce((sum, card) => sum + (card.riskNotes ? card.riskNotes.length : 0), 0);
+        const sources = [...new Set(cards.map(card => card.source).filter(Boolean))];
+        const sourceLabel = sources.length ? sources.join(' / ') : 'unknown';
+
+        return `<div class="guide-section">
+          <div class="guide-section-header"><h3>天气信息</h3></div>
+          <div class="guide-section-body">
+            <div class="guide-weather-summary">
+              <div class="guide-weather-chip"><span>预报条目</span><strong>${cards.length} 条</strong></div>
+              <div class="guide-weather-chip"><span>风险提示</span><strong>${riskCount} 条</strong></div>
+              <div class="guide-weather-chip"><span>数据来源</span><strong>${escapeHtml(sourceLabel)}</strong></div>
+            </div>
+            <div class="guide-weather-grid">
+              ${cards.map(renderGuideWeatherCard).join('')}
+            </div>
+          </div>
+        </div>`;
+      }
+
+      function renderGuideWeatherCard(w) {
+        const riskCount = w.riskNotes ? w.riskNotes.length : 0;
+        const dateLabel = w.date ? formatDateCN(w.date) : w.title;
+        const stats = [
+          w.minTemp != null || w.maxTemp != null ? `<div class="guide-weather-stat">温度<strong>${formatTempRange(w.minTemp, w.maxTemp)}</strong></div>` : '',
+          w.precipitation != null ? `<div class="guide-weather-stat">降水概率<strong>${escapeHtml(w.precipitation)}%</strong></div>` : '',
+          w.wind != null ? `<div class="guide-weather-stat">最大风速<strong>${escapeHtml(w.wind)} km/h</strong></div>` : '',
+          w.gust != null ? `<div class="guide-weather-stat">阵风<strong>${escapeHtml(w.gust)} km/h</strong></div>` : '',
+          w.humidity != null ? `<div class="guide-weather-stat">湿度<strong>${escapeHtml(w.humidity)}%</strong></div>` : '',
+        ].filter(Boolean).join('');
+
+        return `<article class="guide-weather-card${riskCount ? ' has-risk' : ''}">
+          <div class="guide-weather-card-head">
+            <div class="guide-weather-date">${escapeHtml(dateLabel)}</div>
+            <div class="guide-weather-source">${escapeHtml(w.source)}</div>
+          </div>
+          <div class="guide-weather-card-body">
+            <div class="guide-weather-text">${escapeHtml(w.weatherText || '路线区域天气')}</div>
+            ${w.detail ? `<div class="guide-weather-detail">${escapeHtml(w.detail)}</div>` : ''}
+            ${stats ? `<div class="guide-weather-stats">${stats}</div>` : ''}
+            ${riskCount ? `<ul class="guide-weather-risks">${w.riskNotes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
+          </div>
+        </article>`;
+      }
+
+      function formatTempRange(minTemp, maxTemp) {
+        if (minTemp != null && maxTemp != null) return `${minTemp}°C ~ ${maxTemp}°C`;
+        if (minTemp != null) return `最低 ${minTemp}°C`;
+        if (maxTemp != null) return `最高 ${maxTemp}°C`;
+        return '—';
+      }
+
+      function renderPOIList(items, category) {
         if (!items.length) return '<div style="color:var(--muted);font-size:14px;padding:10px">暂无数据</div>';
-        return items.map(item => `
-          <div class="poi-item">
+        return items.map((item, index) => `
+          <div class="poi-item ${item.coordinate ? 'has-coordinate' : ''}" data-poi-category="${escapeHtml(category)}" data-poi-index="${index}">
             <div style="flex:1">
               <div class="poi-name">${escapeHtml(item.title)}</div>
               <div class="poi-detail">${escapeHtml(item.detail)}</div>
@@ -2406,6 +3474,232 @@
             ${item.distance_km != null ? `<div class="poi-dist">${item.distance_km} km</div>` : ''}
           </div>
         `).join('');
+      }
+
+      function stripDayPrefix(title, dayNumber) {
+        const raw = String(title || '').trim();
+        if (!raw) return '行程安排';
+        return raw.replace(new RegExp(`^\\s*(day\\s*${dayNumber}|第\\s*${dayNumber}\\s*天)[：:、\\-\\s]*`, 'i'), '') || raw;
+      }
+
+      function loadGuideHistory() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function persistGuideHistory(items) {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, 30)));
+        renderGuideHistory();
+      }
+
+      function saveGuideHistory(guide) {
+        const rcsH = guide.route_candidates || [];
+        const now = new Date();
+        const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const totalDistH = rcsH.reduce((s, c) => s + (Number(c.analysis.distance_km) || 0), 0);
+        const totalDurH = rcsH.reduce((s, c) => s + (Number(c.analysis.estimated_duration_hours) || 0), 0);
+        const routeNames = rcsH.map(c => c.route.name).filter(Boolean).join(' + ');
+        const item = {
+          id,
+          favorite: false,
+          created_at: now.toISOString(),
+          destination: guide.destination || '未命名攻略',
+          route_name: routeNames || (rcsH[0] ? rcsH[0].route.name : ''),
+          route_summary: totalDistH ? `${totalDistH.toFixed(1)} km · ${totalDurH.toFixed(1)} h` : '',
+          date_label: guide.itinerary && guide.itinerary.days && guide.itinerary.days[0]?.date ? guide.itinerary.days[0].date : formatDateISO(now),
+          guide,
+        };
+        const existing = loadGuideHistory().filter(h => !(h.destination === item.destination && h.route_name === item.route_name));
+        persistGuideHistory([item, ...existing]);
+        markActiveHistory(id);
+      }
+
+      function renderGuideHistory() {
+        if (!historyListEl) return;
+        const items = loadGuideHistory().sort((a, b) => {
+          if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
+          return String(b.created_at).localeCompare(String(a.created_at));
+        });
+        if (!items.length) {
+          historyListEl.innerHTML = `<div class="history-empty">生成攻略后会自动保存在这里。收藏会置顶。</div>`;
+          return;
+        }
+        historyListEl.innerHTML = items.map(item => `
+          <button class="history-item" data-history-id="${escapeHtml(item.id)}" type="button">
+            <div class="history-title-row">
+              <span class="history-title">${escapeHtml(item.destination)}</span>
+              <span class="history-star" data-history-star="${escapeHtml(item.id)}" title="收藏">${item.favorite ? '★' : '☆'}</span>
+            </div>
+            <span class="history-meta">${escapeHtml(item.date_label || '')}</span>
+            <span class="history-route">${escapeHtml(item.route_name || '攻略记录')}${item.route_summary ? ' · ' + escapeHtml(item.route_summary) : ''}</span>
+          </button>
+        `).join('');
+        historyListEl.querySelectorAll('.history-item').forEach(btn => {
+          btn.addEventListener('click', e => {
+            const star = e.target.closest('[data-history-star]');
+            if (star) {
+              toggleGuideFavorite(star.dataset.historyStar);
+              e.stopPropagation();
+              return;
+            }
+            restoreGuideHistory(btn.dataset.historyId);
+          });
+        });
+      }
+
+      function toggleGuideFavorite(id) {
+        const items = loadGuideHistory();
+        const item = items.find(h => h.id === id);
+        if (item) item.favorite = !item.favorite;
+        persistGuideHistory(items);
+        markActiveHistory(id);
+      }
+
+      function restoreGuideHistory(id) {
+        const item = loadGuideHistory().find(h => h.id === id);
+        if (!item || !item.guide) return;
+        parseResults.innerHTML = '';
+        renderGuideResult(item.guide, { saveHistory: false });
+        markActiveHistory(id);
+        const anchor = document.getElementById('guide-scroll-anchor');
+        if (anchor) anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      function markActiveHistory(id) {
+        document.querySelectorAll('.history-item').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.historyId === id);
+        });
+      }
+
+      function hasCoordinatePOI(items) {
+        return Array.isArray(items) && items.some(item => item && item.coordinate && item.coordinate.lon != null && item.coordinate.lat != null);
+      }
+
+      function poiCategories(guide) {
+        const tr = guide.travel_research || {};
+        return {
+          lodging: { label: '住宿', color: '#50683e', items: tr.lodging || [] },
+          food: { label: '餐饮', color: '#a6532b', items: tr.food || [] },
+          supply: { label: '补给', color: '#2e6b9e', items: tr.supply || [] },
+        };
+      }
+
+      async function initGuidePoiMap(guide) {
+        const container = document.getElementById('guide-poi-map');
+        if (!container) return;
+        if (!amapKey) {
+          container.outerHTML = `<div class="guide-poi-map-placeholder">地图服务暂不可用：未配置高德 Web Key。周边点位仍可在列表中核对。</div>`;
+          return;
+        }
+        try {
+          await loadAmapScript(amapKey);
+        } catch {
+          container.outerHTML = `<div class="guide-poi-map-placeholder">地图脚本加载失败，周边点位仍可在列表中核对。</div>`;
+          return;
+        }
+
+        guidePoiMap = new AMap.Map('guide-poi-map', {
+          zoom: 12,
+          mapStyle: 'amap://styles/whitesmoke',
+        });
+        guidePoiInfoWindow = new AMap.InfoWindow({ offset: new AMap.Pixel(0, -28) });
+        renderGuidePoiOverlays(guide);
+      }
+
+      function renderGuidePoiOverlays(guide) {
+        if (!guidePoiMap || !window.AMap) return;
+        guidePoiMap.clearMap();
+        guidePoiMarkers = {};
+        const allPoints = [];
+
+        const rcs = guide.route_candidates || [];
+        rcs.forEach((rc, idx) => {
+          const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
+          const routeCoords = rc.route && rc.route.coordinates ? rc.route.coordinates : [];
+          if (routeCoords.length) {
+            const path = routeCoords.map(c => [Number(c.lon), Number(c.lat)]).filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+            if (path.length) {
+              guidePoiMap.add(new AMap.Polyline({
+                path,
+                strokeColor: color,
+                strokeWeight: 4,
+                strokeOpacity: 0.78,
+                lineJoin: 'round',
+                lineCap: 'round',
+              }));
+              allPoints.push(...path);
+            }
+          }
+        });
+
+        const cats = poiCategories(guide);
+        Object.entries(cats).forEach(([category, config]) => {
+          guidePoiMarkers[category] = [];
+          if (!guidePoiActiveFilters.has(category)) return;
+          config.items.forEach((item, index) => {
+            if (!item.coordinate || item.coordinate.lon == null || item.coordinate.lat == null) return;
+            const position = [Number(item.coordinate.lon), Number(item.coordinate.lat)];
+            if (!Number.isFinite(position[0]) || !Number.isFinite(position[1])) return;
+            const marker = new AMap.Marker({
+              position,
+              title: item.title,
+              anchor: 'bottom-center',
+              content: `<div style="width:24px;height:24px;border-radius:50%;background:${config.color};border:2px solid #fffcf4;box-shadow:0 4px 12px rgba(43,48,32,0.28);display:grid;place-items:center;color:#fff;font-size:12px;font-weight:900">${config.label[0]}</div>`,
+            });
+            marker.on('click', () => focusGuidePoi(category, index));
+            guidePoiMap.add(marker);
+            guidePoiMarkers[category][index] = marker;
+            allPoints.push(position);
+          });
+        });
+
+        if (allPoints.length) {
+          guidePoiMap.setFitView(null, false, [36, 36, 36, 36]);
+        }
+      }
+
+      function activatePoiFilter(category) {
+        if (!category) return;
+        guidePoiActiveFilters.add(category);
+        document.querySelectorAll('.poi-map-filter').forEach(btn => {
+          btn.classList.toggle('active', guidePoiActiveFilters.has(btn.dataset.poiFilter));
+        });
+      }
+
+      function focusGuidePoi(category, index) {
+        if (!category || !Number.isFinite(index)) return;
+        activatePoiFilter(category);
+        const guideSection = document.getElementById('guide-result-section');
+        if (!guideSection) return;
+        const guide = window.__lastGuideData;
+        if (guide) renderGuidePoiOverlays(guide);
+        const item = poiCategories(guide || {})[category]?.items?.[index];
+        const marker = guidePoiMarkers[category]?.[index];
+        document.querySelectorAll('.poi-item').forEach(el => el.classList.remove('active'));
+        const row = document.querySelector(`.poi-item[data-poi-category="${category}"][data-poi-index="${index}"]`);
+        if (row) row.classList.add('active');
+        if (!item || !marker || !guidePoiMap || !guidePoiInfoWindow) return;
+        const pos = marker.getPosition();
+        guidePoiMap.panTo(pos);
+        guidePoiInfoWindow.setContent(renderPoiInfoWindow(item, category));
+        guidePoiInfoWindow.open(guidePoiMap, pos);
+      }
+
+      function renderPoiInfoWindow(item, category) {
+        const labels = { lodging: '住宿', food: '餐饮', supply: '补给' };
+        const tel = item.metadata && item.metadata.tel ? `<div style="margin-top:4px;color:#50683e;font-weight:700">电话：${escapeHtml(item.metadata.tel)}</div>` : '';
+        const dist = item.distance_km != null ? `<div style="margin-top:4px;color:#a6532b">距采样点约 ${escapeHtml(item.distance_km)} km</div>` : '';
+        return `<div style="min-width:180px;max-width:260px;padding:4px 2px">
+          <div style="font-size:12px;color:#7b6f55;margin-bottom:2px">${escapeHtml(labels[category] || '周边')}</div>
+          <div style="font-weight:800;color:#24301d;margin-bottom:4px">${escapeHtml(item.title)}</div>
+          <div style="font-size:12px;color:#5f614f;line-height:1.5">${escapeHtml(item.metadata?.address || item.detail || '')}</div>
+          ${tel}
+          ${dist}
+        </div>`;
       }
     </script>
   </body>

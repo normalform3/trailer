@@ -4,6 +4,10 @@ from app.models.hiking import (
     ElevationStats,
     GearCategory,
     GearList,
+    GuideDecision,
+    GuideReferenceItem,
+    GuideReferenceResearch,
+    GuideToolPlan,
     HikingGuideRequest,
     HikingGuideResponse,
     Itinerary,
@@ -18,6 +22,7 @@ from app.models.hiking import (
     TransportPlan,
     TravelInfoItem,
     TravelResearch,
+    WeatherDetail,
 )
 
 __all__ = [
@@ -26,6 +31,10 @@ __all__ = [
     "ElevationStats",
     "GearCategory",
     "GearList",
+    "GuideDecision",
+    "GuideReferenceItem",
+    "GuideReferenceResearch",
+    "GuideToolPlan",
     "HikingGuideRequest",
     "HikingGuideResponse",
     "Itinerary",
@@ -40,4 +49,5 @@ __all__ = [
     "TransportPlan",
     "TravelInfoItem",
     "TravelResearch",
+    "WeatherDetail",
 ]
