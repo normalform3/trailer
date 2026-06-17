@@ -1183,6 +1183,73 @@
       .btn-generate:hover { background: #1c2818; }
       .btn-generate:disabled { opacity: 0.5; cursor: wait; }
 
+      .guide-actions {
+        display: flex;
+        gap: 10px;
+        align-items: stretch;
+        margin-top: 16px;
+      }
+
+      .guide-actions .btn-generate {
+        margin-top: 0;
+        flex: 2;
+      }
+
+      .btn-llm-test {
+        flex: 1;
+        min-width: 150px;
+        padding: 14px;
+        border: 1px solid rgba(80, 104, 62, 0.32);
+        border-radius: 8px;
+        background: #fffcf4;
+        color: var(--moss-dark);
+        font-size: 14px;
+        font-weight: 900;
+        cursor: pointer;
+        transition: background 0.2s, border-color 0.2s;
+      }
+
+      .btn-llm-test:hover {
+        background: rgba(223, 232, 202, 0.38);
+        border-color: var(--moss);
+      }
+
+      .btn-llm-test:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
+
+      .llm-test-status {
+        display: none;
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .llm-test-status.show { display: block; }
+      .llm-test-status.ok {
+        border: 1px solid rgba(80, 104, 62, 0.25);
+        background: rgba(223, 232, 202, 0.38);
+        color: var(--moss-dark);
+      }
+      .llm-test-status.fail {
+        border: 1px solid rgba(164, 55, 41, 0.24);
+        background: rgba(164, 55, 41, 0.06);
+        color: var(--danger);
+      }
+
+      @media (max-width: 640px) {
+        .guide-actions {
+          flex-direction: column;
+        }
+
+        .btn-llm-test {
+          width: 100%;
+        }
+      }
+
       /* ---- Guide Sections ---- */
       .guide-container { display: grid; gap: 24px; }
 
@@ -1618,21 +1685,25 @@
       }
 
       .guide-loading-content {
-        text-align: center;
-        max-width: 420px;
+        text-align: left;
+        max-width: 760px;
         width: 90%;
+        max-height: 88vh;
+        overflow: auto;
       }
 
       .guide-loading-content h3 {
         margin: 0 0 8px;
         font-size: 22px;
         color: var(--moss-dark);
+        text-align: center;
       }
 
       .guide-loading-subtitle {
         margin: 0 0 24px;
         font-size: 13px;
         color: var(--muted);
+        text-align: center;
       }
 
       .guide-progress-bar-wrap {
@@ -1671,6 +1742,7 @@
         margin-bottom: 24px;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
+        text-align: center;
       }
 
       .guide-loading-elapsed {
@@ -1678,6 +1750,14 @@
         font-size: 12px;
         color: var(--line);
         font-variant-numeric: tabular-nums;
+        text-align: center;
+      }
+
+      .guide-loading-grid {
+        display: grid;
+        grid-template-columns: minmax(220px, 0.8fr) minmax(300px, 1.2fr);
+        gap: 22px;
+        align-items: start;
       }
 
       .guide-loading-stages { text-align: left; margin-top: 8px; }
@@ -1733,6 +1813,110 @@
       @keyframes pulse-icon {
         0%, 100% { box-shadow: 0 0 0 0 rgba(80,104,62,0.3); }
         50% { box-shadow: 0 0 0 6px rgba(80,104,62,0); }
+      }
+
+      .agent-trace-panel {
+        border: 1px solid rgba(80, 104, 62, 0.18);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.58);
+        padding: 14px;
+        min-height: 270px;
+      }
+
+      .agent-trace-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .agent-trace-header strong {
+        color: var(--moss-dark);
+        font-size: 14px;
+      }
+
+      .agent-trace-header span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .agent-trace-list {
+        display: grid;
+        gap: 10px;
+        max-height: 360px;
+        overflow: auto;
+        padding-right: 4px;
+      }
+
+      .agent-trace-item {
+        display: grid;
+        grid-template-columns: 18px 1fr;
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid rgba(47, 63, 37, 0.1);
+        border-radius: 8px;
+        background: rgba(255, 252, 244, 0.82);
+      }
+
+      .agent-trace-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-top: 5px;
+        background: var(--moss);
+      }
+
+      .agent-trace-item.running .agent-trace-dot {
+        animation: pulse-icon 1.5s ease infinite;
+      }
+
+      .agent-trace-item.skipped .agent-trace-dot { background: var(--line); }
+      .agent-trace-item.fallback .agent-trace-dot,
+      .agent-trace-item.warning .agent-trace-dot { background: var(--clay); }
+
+      .agent-trace-title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 3px;
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--moss-dark);
+      }
+
+      .agent-trace-badge {
+        border-radius: 999px;
+        background: rgba(80,104,62,0.12);
+        color: var(--moss-dark);
+        padding: 2px 7px;
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .agent-trace-detail {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .agent-trace-rationale {
+        margin-top: 6px;
+        color: #695f4f;
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      @media (max-width: 760px) {
+        .guide-loading-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .agent-trace-panel {
+          min-height: 0;
+        }
       }
 
       /* ---- POI Tabs ---- */
@@ -2219,14 +2403,22 @@
         // Store data for weather queries
         lastKmlData = data;
 
-        // Set up default date range (today + 29 days)
+        // Set up default date range (today + 6 days)
         const today = new Date();
+        const maxWeatherDate = new Date(today);
+        maxWeatherDate.setDate(maxWeatherDate.getDate() + 15);
         const startDateEl = document.querySelector("#weather-start-date");
         const endDateEl = document.querySelector("#weather-end-date");
-        if (startDateEl) startDateEl.value = formatDateISO(today);
+        if (startDateEl) {
+          startDateEl.min = formatDateISO(today);
+          startDateEl.max = formatDateISO(maxWeatherDate);
+          startDateEl.value = formatDateISO(today);
+        }
         if (endDateEl) {
           const end = new Date(today);
-          end.setDate(end.getDate() + 29);
+          end.setDate(end.getDate() + 6);
+          endDateEl.min = formatDateISO(today);
+          endDateEl.max = formatDateISO(maxWeatherDate);
           endDateEl.value = formatDateISO(end);
         }
 
@@ -2768,12 +2960,17 @@
               <label>参考攻略摘录（可选）</label>
               <textarea id="guide-reference-notes" placeholder="也可以直接粘贴你整理的攻略片段、住宿/补给/交通线索。"></textarea>
             </div>
-            <button class="btn-generate" id="btn-generate-guide">生成攻略</button>
+            <div class="guide-actions">
+              <button class="btn-llm-test" id="btn-test-llm" type="button">测试 LLM 连接</button>
+              <button class="btn-generate" id="btn-generate-guide" type="button">生成攻略</button>
+            </div>
+            <div class="llm-test-status" id="llm-test-status" role="status"></div>
           </div>
         `;
         parseResults.insertAdjacentHTML('beforeend', formHtml);
 
         document.getElementById('btn-generate-guide').addEventListener('click', submitGuideRequest);
+        document.getElementById('btn-test-llm').addEventListener('click', testLLMConnection);
       }
 
       // ---- Loading Overlay ----
@@ -2783,27 +2980,37 @@
         overlay.id = 'guide-loading-overlay';
 
         const stageData = [
-          { text: '分析路线数据', icon: '📍' },
-          { text: '查询天气和周边信息', icon: '🌤' },
-          { text: '规划交通方案', icon: '🚗' },
-          { text: '生成综合攻略', icon: '📋' },
+          { key: 'route', text: '建立路线候选' },
+          { key: 'planner', text: 'Planner 决策工具' },
+          { key: 'tool', text: '按需调用工具' },
+          { key: 'composer', text: '生成综合攻略' },
+          { key: 'reference', text: '补充参考材料' },
         ];
 
         overlay.innerHTML = `
           <div class="guide-loading-content">
             <h3>正在生成攻略</h3>
-            <p class="guide-loading-subtitle">AI 正在为你整合多方信息，请耐心等待</p>
+            <p class="guide-loading-subtitle">Planner Agent 正在按需调用工具，并把可公开的决策轨迹展示在这里</p>
             <div class="guide-progress-bar-wrap">
               <div class="guide-progress-bar" id="guide-progress-bar" style="width:5%"></div>
             </div>
             <div class="guide-progress-pct" id="guide-progress-pct">5%</div>
-            <div class="guide-loading-stages">
-              ${stageData.map((s, i) => `
-                <div class="stage${i === 0 ? ' active' : ''}" data-stage="${i}">
-                  <span class="stage-icon">${i === 0 ? '●' : (i + 1)}</span>
-                  <span>${s.text}</span>
+            <div class="guide-loading-grid">
+              <div class="guide-loading-stages">
+                ${stageData.map((s, i) => `
+                  <div class="stage${i === 0 ? ' active' : ''}" data-stage="${i}" data-phase="${s.key}">
+                    <span class="stage-icon">${i === 0 ? '●' : (i + 1)}</span>
+                    <span>${s.text}</span>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="agent-trace-panel">
+                <div class="agent-trace-header">
+                  <strong>Planner Agent 轨迹</strong>
+                  <span>决策摘要与工具调用</span>
                 </div>
-              `).join('')}
+                <div class="agent-trace-list" id="agent-trace-list"></div>
+              </div>
             </div>
             <div class="guide-loading-elapsed" id="guide-elapsed">已用时 0 秒</div>
           </div>
@@ -2812,10 +3019,16 @@
 
         let currentStage = 0;
         const totalStages = stageData.length;
-        const stageProgress = [5, 25, 50, 75]; // progress % at each stage start
+        const stageProgress = [5, 22, 45, 76, 90]; // progress % at each stage start
         const startTime = Date.now();
 
-        // Animate progress bar smoothly between stages
+        appendGuideAgentTrace({
+          phase: 'planner',
+          title: '启动 Planner Agent',
+          status: 'running',
+          detail: '等待后端返回路线、工具决策和攻略生成事件。'
+        });
+
         let progressAnimId;
         let currentPct = 5;
         let targetPct = 5;
@@ -2829,44 +3042,50 @@
           if (bar) bar.style.width = currentPct + '%';
           if (pctEl) pctEl.textContent = Math.round(currentPct) + '%';
           progressAnimId = requestAnimationFrame(animateProgress);
+          overlay._progressAnimId = progressAnimId;
         }
         progressAnimId = requestAnimationFrame(animateProgress);
 
-        // Advance stages
-        const intervalId = setInterval(() => {
+        function setStageByPhase(phase) {
+          const nextStage = Math.max(0, stageData.findIndex(s => s.key === phase));
           const stages = overlay.querySelectorAll('.stage');
-          if (currentStage < totalStages - 1) {
-            stages[currentStage].classList.remove('active');
-            stages[currentStage].classList.add('done');
-            stages[currentStage].querySelector('.stage-icon').textContent = '✓';
-            currentStage++;
-            stages[currentStage].classList.add('active');
-            stages[currentStage].querySelector('.stage-icon').textContent = '●';
-            targetPct = stageProgress[currentStage];
-          } else {
-            // Last stage: slowly creep toward 95%
-            targetPct = Math.min(targetPct + 1, 95);
-          }
-        }, 4000);
+          stages.forEach((stage, idx) => {
+            stage.classList.toggle('done', idx < nextStage);
+            stage.classList.toggle('active', idx === nextStage);
+            const icon = stage.querySelector('.stage-icon');
+            if (icon) icon.textContent = idx < nextStage ? '✓' : (idx === nextStage ? '●' : String(idx + 1));
+          });
+          currentStage = nextStage;
+          targetPct = Math.max(targetPct, stageProgress[currentStage] || 5);
+        }
 
-        // Elapsed time counter
+        const intervalId = setInterval(() => {
+          if (currentStage >= totalStages - 1) {
+            targetPct = Math.min(targetPct + 0.6, 96);
+          } else {
+            targetPct = Math.min(targetPct + 0.25, (stageProgress[currentStage + 1] || 95) - 3);
+          }
+        }, 900);
+
         const elapsedId = setInterval(() => {
           const elapsed = Math.floor((Date.now() - startTime) / 1000);
           const elapsedEl = document.getElementById('guide-elapsed');
           if (elapsedEl) elapsedEl.textContent = `已用时 ${elapsed} 秒`;
         }, 1000);
 
-        overlay.dataset.intervalId = intervalId;
-        overlay.dataset.elapsedId = elapsedId;
-        overlay.dataset.animId = progressAnimId;
+        overlay._intervalId = intervalId;
+        overlay._elapsedId = elapsedId;
+        overlay._progressAnimId = progressAnimId;
+        overlay._setStageByPhase = setStageByPhase;
+        overlay._setProgress = (pct) => { targetPct = Math.max(targetPct, Math.min(pct, 98)); };
       }
 
       function hideGuideLoadingOverlay() {
         const overlay = document.getElementById('guide-loading-overlay');
         if (overlay) {
-          clearInterval(Number(overlay.dataset.intervalId));
-          clearInterval(Number(overlay.dataset.elapsedId));
-          cancelAnimationFrame(Number(overlay.dataset.animId));
+          clearInterval(overlay._intervalId);
+          clearInterval(overlay._elapsedId);
+          cancelAnimationFrame(overlay._progressAnimId);
           // Quick finish animation
           const bar = document.getElementById('guide-progress-bar');
           const pctEl = document.getElementById('guide-progress-pct');
@@ -2880,6 +3099,76 @@
             if (icon) icon.textContent = '✓';
           });
           setTimeout(() => overlay.remove(), 400);
+        }
+      }
+
+      function appendGuideAgentTrace(event) {
+        const list = document.getElementById('agent-trace-list');
+        const overlay = document.getElementById('guide-loading-overlay');
+        if (!list || !event) return;
+
+        if (overlay && overlay._setStageByPhase && event.phase) {
+          overlay._setStageByPhase(event.phase);
+        }
+
+        const status = event.status || 'completed';
+        const phaseLabel = {
+          route: 'Route',
+          planner: 'Planner',
+          tool: event.tool_name || 'Tool',
+          composer: 'Composer',
+          reference: 'Reference'
+        }[event.phase] || (event.phase || 'Agent');
+        const rationale = Array.isArray(event.rationale) && event.rationale.length
+          ? `<div class="agent-trace-rationale">${event.rationale.map(r => escapeHtml(r)).join('<br>')}</div>`
+          : '';
+
+        const item = document.createElement('div');
+        item.className = `agent-trace-item ${status}`;
+        item.innerHTML = `
+          <span class="agent-trace-dot"></span>
+          <div>
+            <div class="agent-trace-title">
+              <span>${escapeHtml(event.title || 'Agent 事件')}</span>
+              <span class="agent-trace-badge">${escapeHtml(phaseLabel)}</span>
+            </div>
+            ${event.detail ? `<div class="agent-trace-detail">${escapeHtml(event.detail)}</div>` : ''}
+            ${rationale}
+          </div>
+        `;
+        list.appendChild(item);
+        list.scrollTop = list.scrollHeight;
+      }
+
+      async function testLLMConnection() {
+        const btn = document.getElementById('btn-test-llm');
+        const statusEl = document.getElementById('llm-test-status');
+        if (!btn || !statusEl) return;
+
+        btn.disabled = true;
+        btn.textContent = '测试中...';
+        statusEl.className = 'llm-test-status show';
+        statusEl.textContent = '正在用最短回复测试 LLM 连接...';
+
+        try {
+          const res = await fetch('/api/v1/llm/health', { method: 'GET' });
+          if (!res.ok) throw new Error(res.statusText || '请求失败');
+          const data = await res.json();
+          if (data.ok) {
+            const elapsed = data.elapsed_ms != null ? `，耗时 ${data.elapsed_ms} ms` : '';
+            const preview = data.reply_preview ? `，回复：${data.reply_preview}` : '';
+            statusEl.className = 'llm-test-status show ok';
+            statusEl.textContent = `LLM 连接正常（${data.model || '当前模型'}${elapsed}${preview}）`;
+          } else {
+            statusEl.className = 'llm-test-status show fail';
+            statusEl.textContent = `LLM 连接失败：${data.error || '未知错误'}`;
+          }
+        } catch (e) {
+          statusEl.className = 'llm-test-status show fail';
+          statusEl.textContent = `LLM 连接测试失败：${e.message}`;
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '测试 LLM 连接';
         }
       }
 
@@ -2922,19 +3211,73 @@
         body.append('route_file', lastKmlFile);
 
         try {
-          const res = await fetch('/api/v1/hiking-guides/upload', { method: 'POST', body });
-          if (!res.ok) {
-            let detail = res.statusText;
-            try { const err = await res.json(); detail = err.detail || detail; } catch(_) {}
-            throw new Error(detail);
-          }
-          const guideData = await res.json();
+          const guideData = await fetchGuideStream(body);
           renderGuideResult(guideData);
         } catch (e) {
           alert('攻略生成失败: ' + e.message);
         } finally {
           hideGuideLoadingOverlay();
           btn.disabled = false;
+        }
+      }
+
+      async function fetchGuideStream(body) {
+        const res = await fetch('/api/v1/hiking-guides/upload/stream', {
+          method: 'POST',
+          body,
+          headers: { 'Accept': 'text/event-stream' }
+        });
+        if (!res.ok) {
+          let detail = res.statusText;
+          try { const err = await res.json(); detail = err.detail || detail; } catch(_) {}
+          throw new Error(detail);
+        }
+        if (!res.body) {
+          throw new Error('浏览器不支持流式读取，请刷新后重试');
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+        let finalGuide = null;
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const chunks = buffer.split('\n\n');
+          buffer = chunks.pop() || '';
+          for (const chunk of chunks) {
+            const payload = parseSsePayload(chunk);
+            if (!payload) continue;
+            if (payload.event === 'trace') {
+              appendGuideAgentTrace(payload);
+            } else if (payload.event === 'final') {
+              finalGuide = payload.response;
+            } else if (payload.event === 'error') {
+              throw new Error(payload.detail || '流式生成失败');
+            }
+          }
+        }
+
+        if (buffer.trim()) {
+          const payload = parseSsePayload(buffer);
+          if (payload && payload.event === 'final') finalGuide = payload.response;
+        }
+
+        if (!finalGuide) {
+          throw new Error('未收到完整攻略结果');
+        }
+        return finalGuide;
+      }
+
+      function parseSsePayload(chunk) {
+        const line = chunk.split('\n').find(l => l.startsWith('data:'));
+        if (!line) return null;
+        try {
+          return JSON.parse(line.slice(5).trim());
+        } catch (_) {
+          return null;
         }
       }
 

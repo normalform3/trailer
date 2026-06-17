@@ -1,4 +1,5 @@
 from app.models.hiking import (
+    AgentTraceEvent,
     Coordinate,
     DayPlan,
     ElevationStats,
@@ -26,6 +27,7 @@ from app.models.hiking import (
 )
 
 __all__ = [
+    "AgentTraceEvent",
     "Coordinate",
     "DayPlan",
     "ElevationStats",

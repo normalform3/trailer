@@ -18,7 +18,7 @@ Trailer 提供两种使用方式，最终都汇聚到同一套攻略生成流程
 ## 核心能力
 
 - **KML 路线解析** — 支持 `LineString` 和 `gx:Track`，自动计算距离、海拔、爬升/下降、预估耗时和风险等级
-- **天气分析** — 接入高德天气 API，评估未来 4 天天气并判断徒步适宜度
+- **天气分析** — 默认评估未来 7 天天气；近 4 天优先使用高德天气，最长支持 16 天常规预报筛选
 - **交通规划** — 根据出发城市和目的地，提供自驾/公共交通方案
 - **行前信息搜集** — 自动查询目的地周边住宿、餐饮、补给点等信息
 - **AI 攻略生成** — 基于百炼千问大模型，整合所有信息生成结构化攻略（行程日程、装备清单、安全提醒）；模型不可用时自动降级为模板生成
@@ -71,6 +71,7 @@ export AMAP_API_KEY="你的高德地图 Web 服务 Key"
 export AMAP_WEB_KEY="你的高德地图 JS API Key"   # 前端地图渲染用
 export DASHSCOPE_API_KEY="你的百炼 DashScope API Key"
 export ORS_API_KEY="你的 OpenRouteService API Key"  # 可选，路线规划兜底
+export SERPAPI_API_KEY="你的 SerpApi API Key"  # 可选，Google Flights 机票搜索
 ```
 
 也可以直接编辑 `config/settings.toml`：
@@ -80,6 +81,7 @@ export ORS_API_KEY="你的 OpenRouteService API Key"  # 可选，路线规划兜
 amap_api_key = "你的高德地图 Key"
 ors_api_key = "你的 ORS Key"
 dashscope_api_key = "你的百炼 Key"
+serpapi_api_key = "你的 SerpApi Key"
 ```
 
 > **注意：** 请勿将真实 API 密钥提交到版本控制。生产环境建议使用环境变量或 `.env` 文件。

@@ -27,7 +27,7 @@
   - 支持调用 JSON API 或 KML 上传 API。
   - 展示摘要、路线候选、距离、耗时、海拔、风险因子、行前信息搜集、建议、告警和数据来源。
 - 配置读取：
-  - 支持在 `config/settings.toml` 中填写高德、OpenRouteService、百炼/DashScope API Key。
+  - 支持在 `config/settings.toml` 中填写高德、OpenRouteService、百炼/DashScope、SerpApi API Key。
   - 支持系统环境变量，且系统环境变量优先于配置文件。
 - LangGraph Agent 编排。
 - KML 路线解析：
@@ -42,6 +42,7 @@
   - 天气信息会从路线分析阶段的天气快照中暴露给用户。
   - 住宿、交通、餐饮、补给/应急支持静态兜底清单。
   - 配置 `AMAP_API_KEY` 后，会优先尝试高德 POI 查询轨迹起点附近的住宿、交通、餐饮和补给点。
+  - 配置 `SERPAPI_API_KEY` 后，会尝试通过 SerpApi Google Flights 查询出发城市到目的地周边机场的机票价格和耗时。
   - 输出 `travel_research.next_steps`，提醒用户核对两步路最新评论、景区公告、住宿余房、返程末班和天气预警。
 - 路线分析：
   - 距离。
@@ -51,6 +52,7 @@
   - 高温、低温、降水、大风、高海拔、长距离、爬升较大等风险因子。
 - 数据 provider：
   - 高德地点解析接口位。
+  - SerpApi Google Flights 机票搜索接口位。
   - OpenRouteService 路线接口位。
   - OpenTopoData 海拔接口位。
   - Open-Meteo 天气接口位。
@@ -93,6 +95,7 @@ export BAILIAN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 export DASHSCOPE_BASE_HTTP_API_URL=https://dashscope.aliyuncs.com/api/v1
 export AMAP_API_KEY=...
 export ORS_API_KEY=...
+export SERPAPI_API_KEY=...
 ```
 
 `DASHSCOPE_API_KEY` 是百炼官方文档推荐的环境变量。`BAILIAN_MODEL` 不配置时默认使用 `qwen3.7-plus`。

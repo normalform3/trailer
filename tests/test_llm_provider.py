@@ -1,5 +1,6 @@
 import sys
 import types
+from datetime import date
 
 from app.models import Coordinate, GuideReferenceItem, GuideReferenceResearch, HikingGuideRequest, RouteAnalysis, RouteCandidate, RouteGeometry
 from app.models import RouteSource
@@ -78,6 +79,44 @@ def test_bailian_provider_parses_dashscope_multimodal_response(monkeypatch) -> N
     assert draft.summary == "适合两日轻装徒步。"
     assert draft.recommendations == ["避开雷雨", "提前订住宿"]
     assert draft.source == "bailian:qwen3.7-plus"
+
+
+def test_bailian_provider_minimal_connection_check(monkeypatch) -> None:
+    calls = {}
+
+    class FakeMultiModalConversation:
+        @staticmethod
+        def call(api_key, model, messages, parameters=None):
+            calls["api_key"] = api_key
+            calls["model"] = model
+            calls["messages"] = messages
+            calls["parameters"] = parameters
+            return types.SimpleNamespace(
+                status_code=200,
+                output=types.SimpleNamespace(
+                    choices=[
+                        types.SimpleNamespace(
+                            message=types.SimpleNamespace(
+                                content=[{"text": "OK"}]
+                            )
+                        )
+                    ]
+                ),
+            )
+
+    fake_dashscope = types.SimpleNamespace(
+        base_http_api_url=None,
+        MultiModalConversation=FakeMultiModalConversation,
+    )
+    monkeypatch.setitem(sys.modules, "dashscope", fake_dashscope)
+
+    provider = BailianQwenGuideProvider(api_key="test-key")
+    result = provider.test_connection()
+
+    assert result["ok"] is True
+    assert result["reply_preview"] == "OK"
+    assert calls["parameters"] == {"max_tokens": 2}
+    assert calls["messages"][0]["content"][0]["text"] == "只回复 OK"
 
 
 def test_bailian_provider_parses_enhanced_response(monkeypatch) -> None:
@@ -320,3 +359,60 @@ def test_template_provider_multi_day_itinerary() -> None:
     assert draft.itinerary is not None
     assert draft.itinerary.is_multi_day is True
     assert draft.itinerary.total_days > 1
+
+
+def test_template_provider_respects_relaxed_user_date_range() -> None:
+    provider = TemplateGuideProvider()
+    candidate = _make_candidate()
+
+    draft = provider.generate_guide(
+        HikingGuideRequest(
+            destination="武功山",
+            start_city="上海",
+            date_range=(date(2026, 7, 1), date(2026, 7, 4)),
+        ),
+        [candidate],
+        warnings=[],
+        data_sources=[],
+    )
+
+    assert draft.itinerary is not None
+    assert draft.itinerary.total_days == 4
+    assert any("周边游览" in day.title or "抵达" in day.title for day in draft.itinerary.days)
+    assert any("最短建议 1 天" in note for note in draft.itinerary.notes)
+
+
+def test_template_provider_warns_when_user_date_range_is_too_short() -> None:
+    provider = TemplateGuideProvider()
+    candidate = RouteCandidate(
+        label="用户提供轨迹",
+        route=RouteGeometry(
+            name="长路线",
+            source=RouteSource.USER_KML,
+            confidence=0.95,
+            coordinates=[
+                Coordinate(lon=114.0, lat=27.0, elevation_m=500),
+                Coordinate(lon=114.5, lat=27.5, elevation_m=1800),
+            ],
+        ),
+        analysis=RouteAnalysis(
+            distance_km=35.0,
+            estimated_duration_hours=12.0,
+            elevation={"min_m": 500, "max_m": 1800, "ascent_m": 1300, "descent_m": 0},
+            risk_level="medium",
+        ),
+    )
+
+    draft = provider.generate_guide(
+        HikingGuideRequest(
+            destination="武功山",
+            date_range=(date(2026, 7, 1), date(2026, 7, 1)),
+        ),
+        [candidate],
+        warnings=[],
+        data_sources=[],
+    )
+
+    assert draft.itinerary is not None
+    assert draft.itinerary.total_days == 2
+    assert any("短于最短建议 2 天" in note for note in draft.itinerary.notes)

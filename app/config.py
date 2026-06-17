@@ -19,8 +19,7 @@ class ApiKeySettings:
     ors_api_key: str | None = None
     dashscope_api_key: str | None = None
     bailian_api_key: str | None = None
-    amadeus_client_id: str | None = None
-    amadeus_client_secret: str | None = None
+    serpapi_api_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -63,11 +62,7 @@ def load_settings(config_path: Path = DEFAULT_CONFIG_PATH) -> AppSettings:
                 api_keys.get("dashscope_api_key"),
             ),
             bailian_api_key=_first_value(os.getenv("BAILIAN_API_KEY"), api_keys.get("bailian_api_key")),
-            amadeus_client_id=_first_value(os.getenv("AMADEUS_CLIENT_ID"), api_keys.get("amadeus_client_id")),
-            amadeus_client_secret=_first_value(
-                os.getenv("AMADEUS_CLIENT_SECRET"),
-                api_keys.get("amadeus_client_secret"),
-            ),
+            serpapi_api_key=_first_value(os.getenv("SERPAPI_API_KEY"), api_keys.get("serpapi_api_key")),
         ),
         bailian=BailianSettings(
             model=_first_value(os.getenv("BAILIAN_MODEL"), bailian.get("model")) or "qwen3.7-plus",

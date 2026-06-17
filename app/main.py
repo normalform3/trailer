@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from app.agents import HikingGuideAgent
 from app.config import get_settings
 from app.models import Coordinate, HikingGuideRequest, HikingGuideResponse
+from app.providers.llm import BailianQwenGuideProvider
 from app.providers.transport import RoughTransportProvider
 from app.providers.weather import AmapWeatherProvider, CompositeWeatherProvider, DailyForecast, NoopWeatherProvider, OpenMeteoWeatherProvider, WeatherProvider
 from app.services.route_analysis import RouteAnalysisService
@@ -38,7 +40,8 @@ _ingestion = RouteIngestionService()
 _analysis = RouteAnalysisService()
 _amap_weather = AmapWeatherProvider() if get_settings().api_keys.amap_api_key else None
 _open_meteo_weather = OpenMeteoWeatherProvider(timeout_s=15.0)
-MAX_WEATHER_RANGE_DAYS = 46
+DEFAULT_WEATHER_RANGE_DAYS = 7
+MAX_WEATHER_RANGE_DAYS = 16
 
 
 @app.get("/health")
@@ -56,6 +59,20 @@ def map_config() -> dict[str, str | None]:
     """Return the AMap Web JS API key for frontend use."""
     settings = get_settings()
     return {"amap_web_key": settings.api_keys.amap_web_key}
+
+
+@app.get("/api/v1/llm/health")
+def llm_health() -> dict[str, object]:
+    """Run a minimal-token LLM connectivity check."""
+    provider = BailianQwenGuideProvider()
+    try:
+        return provider.test_connection()
+    except Exception as exc:  # noqa: BLE001 - health check should report provider failures.
+        return {
+            "ok": False,
+            "model": provider.model,
+            "error": _public_llm_error(exc),
+        }
 
 
 @app.post("/api/v1/kml-preview")
@@ -200,6 +217,88 @@ async def create_hiking_guide_with_kml(
     return agent.generate(request, route_file_content=content)
 
 
+@app.post("/api/v1/hiking-guides/upload/stream")
+async def stream_hiking_guide_with_kml(
+    destination: str = Form(...),
+    start_city: str | None = Form(default=None),
+    start_date: str | None = Form(default=None),
+    end_date: str | None = Form(default=None),
+    fitness_level: str | None = Form(default=None),
+    preferences: str | None = Form(default=None),
+    route_text: str | None = Form(default=None),
+    reference_links: str | None = Form(default=None),
+    reference_notes: str | None = Form(default=None),
+    route_file: UploadFile | None = File(default=None),
+) -> StreamingResponse:
+    content = await route_file.read() if route_file else None
+    request = _build_guide_request(
+        destination=destination,
+        start_city=start_city,
+        start_date=start_date,
+        end_date=end_date,
+        fitness_level=fitness_level,
+        preferences=preferences,
+        route_text=route_text,
+        reference_links=reference_links,
+        reference_notes=reference_notes,
+    )
+
+    def event_stream():
+        try:
+            yield _sse({"event": "trace", "phase": "planner", "title": "启动 Planner Agent", "status": "running", "detail": "正在读取输入并准备按需调用工具。"})
+            for event in agent.generate_events(request, route_file_content=content):
+                yield _sse(event)
+        except Exception as exc:  # noqa: BLE001
+            yield _sse({"event": "error", "detail": str(exc)})
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+def _build_guide_request(
+    destination: str,
+    start_city: str | None,
+    start_date: str | None,
+    end_date: str | None,
+    fitness_level: str | None,
+    preferences: str | None,
+    route_text: str | None,
+    reference_links: str | None,
+    reference_notes: str | None,
+) -> HikingGuideRequest:
+    date_range = None
+    if start_date and end_date:
+        try:
+            date_range = (date.fromisoformat(start_date), date.fromisoformat(end_date))
+        except ValueError:
+            raise HTTPException(status_code=422, detail="日期格式无效，请使用 YYYY-MM-DD 格式")
+
+    prefs = [p.strip() for p in (preferences or "").split(",") if p.strip()] if preferences else []
+
+    return HikingGuideRequest(
+        destination=destination,
+        start_city=start_city,
+        date_range=date_range,
+        fitness_level=fitness_level,
+        preferences=prefs,
+        route_text=route_text,
+        reference_links=_split_reference_links(reference_links),
+        reference_notes=reference_notes,
+    )
+
+
+def _sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+def _public_llm_error(exc: Exception) -> str:
+    text = str(exc)
+    if "DASHSCOPE_API_KEY" in text or "BAILIAN_API_KEY" in text:
+        return "未配置 DASHSCOPE_API_KEY 或 BAILIAN_API_KEY"
+    if "dashscope package is not installed" in text:
+        return "未安装 dashscope 依赖"
+    return text or exc.__class__.__name__
+
+
 def _split_reference_links(value: str | None) -> list[str]:
     if not value:
         return []
@@ -215,7 +314,7 @@ def _normalize_weather_date_range(
     warnings: list[str] = []
     try:
         range_start = date.fromisoformat(start_date) if start_date else today
-        range_end = date.fromisoformat(end_date) if end_date else range_start + timedelta(days=29)
+        range_end = date.fromisoformat(end_date) if end_date else range_start + timedelta(days=DEFAULT_WEATHER_RANGE_DAYS - 1)
     except ValueError as exc:
         raise ValueError("日期格式无效，请使用 YYYY-MM-DD 格式") from exc
 
@@ -231,7 +330,7 @@ def _normalize_weather_date_range(
     if range_start > max_end:
         raise ValueError(f"当前天气数据最多支持未来 {MAX_WEATHER_RANGE_DAYS} 天")
     if range_end > max_end:
-        warnings.append(f"结束日期超出可用预报窗口，已截断到 {max_end.isoformat()}")
+        warnings.append(f"当前天气数据最多支持未来 {MAX_WEATHER_RANGE_DAYS} 天，结束日期已截断到 {max_end.isoformat()}")
         range_end = max_end
 
     return range_start, range_end, warnings
@@ -242,28 +341,63 @@ def _weather_forecasts_for_range(
     range_start: date,
     range_end: date,
 ) -> tuple[list[DailyForecast], list[str]]:
-    range_days = (range_end - range_start).days + 1
     today = date.today()
-    if _amap_weather and range_days <= 4 and range_end <= today + timedelta(days=3):
+    forecasts: list[DailyForecast] = []
+
+    if _amap_weather and range_start <= today + timedelta(days=3) and range_end >= today:
         try:
-            return _amap_weather.daily_forecast(coordinate), []
+            forecasts.extend(_filter_forecasts_for_range(_amap_weather.daily_forecast(coordinate), range_start, range_end))
         except Exception:
             pass
-    try:
-        return _open_meteo_weather.daily_forecast(coordinate, range_start, range_end), []
-    except Exception:
-        forecast_horizon_end = today + timedelta(days=15)
-        fallback_end = min(range_end, forecast_horizon_end)
-        if range_start > fallback_end:
-            return [], [
-                (
-                    "长周期趋势服务暂不可用，且所选日期已超出常规 16 天预报窗口；"
-                    "请稍后重试或改选更近的日期"
-                )
-            ]
-        if range_days <= 16 and range_end <= forecast_horizon_end:
+
+    missing_ranges = _missing_forecast_ranges(range_start, range_end, forecasts)
+    for missing_start, missing_end in missing_ranges:
+        try:
+            forecasts.extend(_open_meteo_weather.daily_forecast(coordinate, missing_start, missing_end))
+        except Exception:
             raise
-        forecasts = _open_meteo_weather.daily_forecast(coordinate, range_start, fallback_end)
-        return forecasts, [
-            f"长周期趋势服务暂不可用，已返回 {range_start.isoformat()} 至 {fallback_end.isoformat()} 的常规预报"
-        ]
+
+    return _filter_forecasts_for_range(forecasts, range_start, range_end), []
+
+
+def _filter_forecasts_for_range(
+    forecasts: list[DailyForecast],
+    range_start: date,
+    range_end: date,
+) -> list[DailyForecast]:
+    seen_dates: set[str] = set()
+    filtered: list[DailyForecast] = []
+    for forecast in sorted(forecasts, key=lambda item: item.date):
+        if forecast.date in seen_dates:
+            continue
+        if range_start.isoformat() <= forecast.date <= range_end.isoformat():
+            filtered.append(forecast)
+            seen_dates.add(forecast.date)
+    return filtered
+
+
+def _missing_forecast_ranges(
+    range_start: date,
+    range_end: date,
+    forecasts: list[DailyForecast],
+) -> list[tuple[date, date]]:
+    covered_dates = {forecast.date for forecast in forecasts}
+    missing_ranges: list[tuple[date, date]] = []
+    current_start: date | None = None
+    current_end: date | None = None
+
+    current = range_start
+    while current <= range_end:
+        if current.isoformat() not in covered_dates:
+            if current_start is None:
+                current_start = current
+            current_end = current
+        elif current_start and current_end:
+            missing_ranges.append((current_start, current_end))
+            current_start = None
+            current_end = None
+        current += timedelta(days=1)
+
+    if current_start and current_end:
+        missing_ranges.append((current_start, current_end))
+    return missing_ranges

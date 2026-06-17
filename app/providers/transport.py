@@ -30,11 +30,30 @@ class FlightPriceProvider(Protocol):
         raise NotImplementedError
 
 
+class DrivingDurationProvider(Protocol):
+    def estimate(
+        self,
+        start_city: str,
+        destination_coordinate: Coordinate,
+    ) -> TransportOption:
+        raise NotImplementedError
+
+
 class RoughTransportProvider:
     """粗粒度出行方案：只罗列可选方式，不替用户做精确导航。"""
 
-    def __init__(self, flight_provider: FlightPriceProvider | None = None) -> None:
-        self.flight_provider = flight_provider or AmadeusFlightPriceProvider()
+    def __init__(
+        self,
+        flight_provider: FlightPriceProvider | None = None,
+        driving_provider: DrivingDurationProvider | None = None,
+    ) -> None:
+        self.flight_provider = flight_provider or SerpApiFlightSearchProvider()
+        settings = get_settings()
+        self.driving_provider = (
+            driving_provider
+            if driving_provider is not None
+            else AmapDrivingDurationProvider(settings.api_keys.amap_api_key)
+        )
 
     def plan(
         self,
@@ -43,12 +62,19 @@ class RoughTransportProvider:
         destination_name: str,
         departure_date: date | None = None,
     ) -> TransportPlan:
+        warnings: list[str] = []
+        try:
+            driving_option = self.driving_provider.estimate(start_city, destination_coordinate)
+            driving_option.steps.insert(0, f"自驾到 {destination_name} 附近停车点或登山口")
+        except Exception as exc:  # noqa: BLE001 - driving estimate is optional.
+            driving_option = self._driving_option(destination_name)
+            warnings.append(f"高德自驾耗时暂不可用：{exc}")
+
         options = [
-            self._driving_option(destination_name),
+            driving_option,
             self._rail_option(start_city, destination_name),
             self._charter_option(destination_name),
         ]
-        warnings: list[str] = []
 
         try:
             options.insert(1, self.flight_provider.cheapest_offer(start_city, destination_name, departure_date))
@@ -62,7 +88,7 @@ class RoughTransportProvider:
                         "再接高铁、汽车或包车前往登山口",
                     ],
                     tip="机票报价暂不可用，请在配置票价 API 后重试或自行核对航司/OTA",
-                    booking_hint="需要配置 AMADEUS_CLIENT_ID / AMADEUS_CLIENT_SECRET，并补充可映射机场与出行日期",
+                    booking_hint="需要配置 SERPAPI_API_KEY，并补充可映射机场与出行日期",
                     requires_user_verification=True,
                     source="flight-placeholder",
                 ),
@@ -120,19 +146,16 @@ class RoughTransportProvider:
         )
 
 
-class AmadeusFlightPriceProvider:
-    token_url = "https://test.api.amadeus.com/v1/security/oauth2/token"
-    offers_url = "https://test.api.amadeus.com/v2/shopping/flight-offers"
+class SerpApiFlightSearchProvider:
+    search_url = "https://serpapi.com/search"
 
     def __init__(
         self,
-        client_id: str | None = None,
-        client_secret: str | None = None,
+        api_key: str | None = None,
         timeout_s: float = 10.0,
     ) -> None:
         settings = get_settings()
-        self.client_id = client_id if client_id is not None else settings.api_keys.amadeus_client_id
-        self.client_secret = client_secret if client_secret is not None else settings.api_keys.amadeus_client_secret
+        self.api_key = api_key if api_key is not None else settings.api_keys.serpapi_api_key
         self.timeout_s = timeout_s
 
     def cheapest_offer(
@@ -141,8 +164,8 @@ class AmadeusFlightPriceProvider:
         destination_name: str,
         departure_date: date | None,
     ) -> TransportOption:
-        if not self.client_id or not self.client_secret:
-            raise RuntimeError("Amadeus credentials are not configured")
+        if not self.api_key:
+            raise RuntimeError("SERPAPI_API_KEY is not configured")
         if departure_date is None:
             raise RuntimeError("出行日期缺失，无法查询机票报价")
 
@@ -151,56 +174,121 @@ class AmadeusFlightPriceProvider:
         if not origin or not destination:
             raise RuntimeError("出发地或目的地无法映射到机场代码")
 
-        token = self._access_token()
         response = httpx.get(
-            self.offers_url,
-            headers={"Authorization": f"Bearer {token}"},
+            self.search_url,
             params={
-                "originLocationCode": origin,
-                "destinationLocationCode": destination,
-                "departureDate": departure_date.isoformat(),
-                "adults": 1,
-                "currencyCode": "CNY",
-                "max": 5,
+                "engine": "google_flights",
+                "api_key": self.api_key,
+                "departure_id": origin,
+                "arrival_id": destination,
+                "outbound_date": departure_date.isoformat(),
+                "type": "2",
+                "currency": "CNY",
+                "hl": "zh-cn",
+                "gl": "cn",
             },
             timeout=self.timeout_s,
         )
         response.raise_for_status()
-        offers = response.json().get("data") or []
+        payload = response.json()
+        if payload.get("error"):
+            raise RuntimeError(f"SerpApi flight search failed: {payload['error']}")
+        offers = (payload.get("best_flights") or []) + (payload.get("other_flights") or [])
         if not offers:
-            raise RuntimeError("Amadeus did not return flight offers")
+            raise RuntimeError("SerpApi did not return flight offers")
 
-        cheapest = min(offers, key=lambda item: _float_or_none((item.get("price") or {}).get("grandTotal")) or float("inf"))
-        price = cheapest.get("price") or {}
-        amount = price.get("grandTotal")
-        currency = price.get("currency") or "CNY"
-        segments = _flight_segments(cheapest)
+        cheapest = min(
+            offers,
+            key=lambda item: price if (price := _price_value(item.get("price"))) is not None else float("inf"),
+        )
+        amount = cheapest.get("price")
+        duration_minutes = _float_or_none(cheapest.get("total_duration"))
+        duration_hours = round(duration_minutes / 60, 1) if duration_minutes is not None else None
+        segments = _serpapi_flight_steps(cheapest)
+        if duration_minutes is not None:
+            segments.insert(0, f"Google Flights 估算总耗时约 {_format_minutes(duration_minutes)}")
         return TransportOption(
             mode="flight",
-            price_estimate=f"{amount} {currency}" if amount else None,
-            cost_estimate=f"{amount} {currency}" if amount else None,
+            price_estimate=_format_price(amount, "CNY"),
+            cost_estimate=_format_price(amount, "CNY"),
+            duration_hours=duration_hours,
             steps=segments or [f"{origin} → {destination}，再转地面交通到登山口"],
-            tip="机票价格波动较大，需以航司或出票平台实时结果为准",
+            tip="机票价格来自 Google Flights 搜索结果，波动较大，需以航司或出票平台实时结果为准",
             booking_hint="核对行李额、退改签、到达机场到登山口的接驳时间",
             requires_user_verification=True,
-            source="amadeus-flight-offers",
+            source="serpapi-google-flights",
         )
 
-    def _access_token(self) -> str:
-        response = httpx.post(
-            self.token_url,
-            data={
-                "grant_type": "client_credentials",
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,
+
+class AmapDrivingDurationProvider:
+    geocode_url = "https://restapi.amap.com/v3/geocode/geo"
+    driving_url = "https://restapi.amap.com/v3/direction/driving"
+
+    def __init__(self, api_key: str | None = None, timeout_s: float = 8.0) -> None:
+        self.api_key = api_key
+        self.timeout_s = timeout_s
+
+    def estimate(
+        self,
+        start_city: str,
+        destination_coordinate: Coordinate,
+    ) -> TransportOption:
+        if not self.api_key:
+            raise RuntimeError("AMAP_API_KEY is not configured")
+        origin = self._geocode(start_city)
+        destination = f"{destination_coordinate.lon},{destination_coordinate.lat}"
+        response = httpx.get(
+            self.driving_url,
+            params={
+                "key": self.api_key,
+                "origin": origin,
+                "destination": destination,
+                "strategy": 10,
             },
             timeout=self.timeout_s,
         )
         response.raise_for_status()
-        token = response.json().get("access_token")
-        if not token:
-            raise RuntimeError("Amadeus token response did not include access_token")
-        return str(token)
+        payload = response.json()
+        route = payload.get("route") or {}
+        paths = route.get("paths") or []
+        if not paths:
+            raise RuntimeError("Amap did not return driving paths")
+        path = paths[0]
+        duration_hours = _float_or_none(path.get("duration"))
+        distance_km = _float_or_none(path.get("distance"))
+        duration_hours = round(duration_hours / 3600, 1) if duration_hours is not None else None
+        distance_km = round(distance_km / 1000, 1) if distance_km is not None else None
+        summary = []
+        if duration_hours is not None:
+            summary.append(f"高德估算驾车约 {duration_hours:.1f} 小时")
+        if distance_km is not None:
+            summary.append(f"约 {distance_km:.0f} km")
+        return TransportOption(
+            mode="driving",
+            duration_hours=duration_hours,
+            distance_km=distance_km,
+            steps=[
+                "；".join(summary) if summary else "高德已返回自驾估算",
+                "出发前仍需用导航确认实时路况、停车场开放和夜间山路限制",
+                "把最后一段接驳、返程取车和备用下撤点提前写入行程",
+            ],
+            tip="自驾耗时为高德接口粗略估算，不替代出发当天实时导航",
+            booking_hint="核对停车点、山路限行、景区换乘和返程取车",
+            requires_user_verification=True,
+            source="amap-driving",
+        )
+
+    def _geocode(self, start_city: str) -> str:
+        response = httpx.get(
+            self.geocode_url,
+            params={"key": self.api_key, "address": start_city},
+            timeout=self.timeout_s,
+        )
+        response.raise_for_status()
+        geocodes = response.json().get("geocodes") or []
+        if not geocodes or not geocodes[0].get("location"):
+            raise RuntimeError("Amap did not geocode start city")
+        return str(geocodes[0]["location"])
 
 
 # Backward-compatible aliases for existing imports/tests.
@@ -210,7 +298,10 @@ class AmapTransportProvider(RoughTransportProvider):
 
 class StaticTransportProvider(RoughTransportProvider):
     def __init__(self) -> None:
-        super().__init__(flight_provider=UnavailableFlightPriceProvider())
+        super().__init__(
+            flight_provider=UnavailableFlightPriceProvider(),
+            driving_provider=UnavailableDrivingDurationProvider(),
+        )
 
 
 class UnavailableFlightPriceProvider:
@@ -221,6 +312,15 @@ class UnavailableFlightPriceProvider:
         departure_date: date | None,
     ) -> TransportOption:
         raise RuntimeError("flight price provider is not configured")
+
+
+class UnavailableDrivingDurationProvider:
+    def estimate(
+        self,
+        start_city: str,
+        destination_coordinate: Coordinate,
+    ) -> TransportOption:
+        raise RuntimeError("driving duration provider is not configured")
 
 
 def _city_to_iata(value: str) -> str | None:
@@ -259,21 +359,71 @@ def _destination_to_iata(value: str) -> str | None:
     return _city_to_iata(value)
 
 
-def _flight_segments(offer: dict[str, object]) -> list[str]:
+def _serpapi_flight_steps(offer: dict[str, object]) -> list[str]:
     segments: list[str] = []
-    itineraries = offer.get("itineraries") if isinstance(offer, dict) else None
-    if not isinstance(itineraries, list):
+    flights = offer.get("flights") if isinstance(offer, dict) else None
+    if not isinstance(flights, list):
         return segments
-    for itinerary in itineraries[:1]:
-        for segment in (itinerary.get("segments") or [])[:3]:
-            dep = (segment.get("departure") or {}).get("iataCode", "")
-            arr = (segment.get("arrival") or {}).get("iataCode", "")
-            carrier = segment.get("carrierCode", "")
-            number = segment.get("number", "")
-            if dep and arr:
-                flight = f"{carrier}{number}" if carrier or number else "航班"
-                segments.append(f"{flight}: {dep} → {arr}")
+    for segment in flights[:3]:
+        if not isinstance(segment, dict):
+            continue
+        departure = segment.get("departure_airport") or {}
+        arrival = segment.get("arrival_airport") or {}
+        if not isinstance(departure, dict) or not isinstance(arrival, dict):
+            continue
+        dep = departure.get("id", "")
+        arr = arrival.get("id", "")
+        dep_time = departure.get("time")
+        arr_time = arrival.get("time")
+        airline = segment.get("airline", "")
+        flight_number = segment.get("flight_number", "")
+        label = str(flight_number or airline or "航班")
+        if airline and flight_number and str(airline) not in label:
+            label = f"{airline} {label}"
+        if dep and arr:
+            time_hint = f"（{dep_time} → {arr_time}）" if dep_time and arr_time else ""
+            segments.append(f"{label}: {dep} → {arr}{time_hint}")
+    layovers = offer.get("layovers") if isinstance(offer, dict) else None
+    if isinstance(layovers, list) and layovers:
+        stops = []
+        for layover in layovers[:2]:
+            if isinstance(layover, dict) and layover.get("id"):
+                stops.append(str(layover["id"]))
+        if stops:
+            segments.append(f"中转：{'、'.join(stops)}")
     return segments
+
+
+def _price_value(value: object) -> float | None:
+    if isinstance(value, str):
+        normalized = "".join(ch for ch in value if ch.isdigit() or ch == ".")
+        return _float_or_none(normalized)
+    return _float_or_none(value)
+
+
+def _format_price(value: object, currency: str) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return f"{value} {currency}"
+    if isinstance(value, float):
+        return f"{value:.0f} {currency}" if value.is_integer() else f"{value:.2f} {currency}"
+    text = str(value).strip()
+    if not text:
+        return None
+    if any(token in text.upper() for token in (currency, "USD", "CNY")) or any(symbol in text for symbol in ("¥", "￥", "$")):
+        return text
+    return f"{text} {currency}"
+
+
+def _format_minutes(value: float) -> str:
+    minutes = int(round(value))
+    hours, remaining_minutes = divmod(minutes, 60)
+    if hours and remaining_minutes:
+        return f"{hours} 小时 {remaining_minutes} 分钟"
+    if hours:
+        return f"{hours} 小时"
+    return f"{remaining_minutes} 分钟"
 
 
 def _float_or_none(value: object) -> float | None:

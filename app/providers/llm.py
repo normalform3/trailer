@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from time import perf_counter
+from math import ceil
 from typing import Any, Protocol
 
 from app.config import get_settings
@@ -222,75 +224,151 @@ class TemplateGuideProvider:
         distance = agg["total_distance"]
         duration = agg["total_duration"]
         route_names = agg["route_names"]
-        is_multi = duration > 8.0
-        total_days = max(2, -(-int(duration) // 8)) if is_multi else 1
+        context = self.itinerary_planning_context(request, candidates, agg)
+        total_days = int(context["planned_days"])
+        active_days = int(context["minimum_days"])
+        is_multi = total_days > 1
 
         days: list[dict] = []
-        if not is_multi:
-            if len(candidates) > 1:
-                segments = [f"{name}（{c.analysis.distance_km:.1f} km）" for name, c in zip(route_names, candidates)]
-                key_seg = [f"共 {len(candidates)} 段拼接：{'→'.join(segments)}"]
-                title = f"单日徒步：{'→'.join(route_names)}"
-            else:
-                title = f"单日徒步：{route_names[0]}"
-                key_seg = [f"全程 {distance:.1f} km，预计 {duration:.1f} 小时"]
+        leisure_before = total_days > active_days
+        day_number = 1
+        if leisure_before:
             days.append({
-                "day_number": 1,
-                "title": title,
-                "distance_km": round(distance, 1),
-                "elevation_gain_m": agg["total_ascent"] or None,
-                "key_segments": key_seg,
-                "lodging_suggestion": None,
-                "notes": ["请合理安排出发时间，预留充足返程时间"],
+                "day_number": day_number,
+                "title": "Day 1：抵达与登山口适应",
+                "distance_km": None,
+                "elevation_gain_m": None,
+                "key_segments": [
+                    f"{request.start_city or '出发地'} 前往 {request.destination} 周边或登山口",
+                    "核对天气、补给、住宿和次日上山交通",
+                ],
+                "lodging_suggestion": "住在登山口、景区周边镇区或便于次日出发的位置",
+                "notes": ["这是放宽行程日，不计入核心徒步里程"],
             })
+            day_number += 1
+
+        hiking_days_available = min(active_days, total_days - len(days))
+        hiking_days_available = max(1, hiking_days_available)
+        if len(candidates) > 1 and hiking_days_available <= len(candidates):
+            segs_per_day = max(1, ceil(len(candidates) / hiking_days_available))
+            day_idx = 0
+            for active_index in range(1, hiking_days_available + 1):
+                is_last_hiking_day = active_index == hiking_days_available
+                start_i = day_idx
+                end_i = len(candidates) if is_last_hiking_day else min(day_idx + segs_per_day, len(candidates))
+                day_segs = candidates[start_i:end_i]
+                day_names = [c.route.name for c in day_segs]
+                day_dist = sum(c.analysis.distance_km for c in day_segs)
+                day_ascent = sum((c.analysis.elevation.ascent_m or 0) for c in day_segs)
+                day_dur = sum(c.analysis.estimated_duration_hours for c in day_segs)
+                seg_details = [f"{c.route.name}（{c.analysis.distance_km:.1f} km）" for c in day_segs]
+                days.append({
+                    "day_number": day_number,
+                    "title": f"Day {day_number}：{'→'.join(day_names)}",
+                    "distance_km": round(day_dist, 1),
+                    "elevation_gain_m": round(day_ascent, 0) if day_ascent else None,
+                    "key_segments": seg_details + [f"当日合计 {day_dist:.1f} km，约 {day_dur:.1f} 小时"],
+                    "lodging_suggestion": "需提前确认沿途住宿" if not is_last_hiking_day else None,
+                    "notes": ["注意分配体力，留足余量"],
+                })
+                day_number += 1
+                day_idx = end_i
         else:
-            # Multi-day: distribute route segments across days
-            if len(candidates) > 1 and total_days <= len(candidates):
-                # Map segments to days when days <= segments
-                segs_per_day = max(1, len(candidates) // total_days)
-                day_idx = 0
-                for day_num in range(1, total_days + 1):
-                    is_last = day_num == total_days
-                    start_i = day_idx
-                    end_i = len(candidates) if is_last else min(day_idx + segs_per_day, len(candidates))
-                    day_segs = candidates[start_i:end_i]
-                    day_names = [c.route.name for c in day_segs]
-                    day_dist = sum(c.analysis.distance_km for c in day_segs)
-                    day_ascent = sum((c.analysis.elevation.ascent_m or 0) for c in day_segs)
-                    day_dur = sum(c.analysis.estimated_duration_hours for c in day_segs)
-                    seg_details = [f"{c.route.name}（{c.analysis.distance_km:.1f} km）" for c in day_segs]
-                    days.append({
-                        "day_number": day_num,
-                        "title": f"Day {day_num}：{'→'.join(day_names)}",
-                        "distance_km": round(day_dist, 1),
-                        "elevation_gain_m": round(day_ascent, 0) if day_ascent else None,
-                        "key_segments": seg_details + [f"当日合计 {day_dist:.1f} km，约 {day_dur:.1f} 小时"],
-                        "lodging_suggestion": "需提前确认沿途住宿" if not is_last else None,
-                        "notes": ["注意分配体力，留足余量"],
-                    })
-                    day_idx = end_i
-            else:
-                daily_dist = round(distance / total_days, 1)
-                daily_ascent = round(agg["total_ascent"] / total_days, 0) if agg["total_ascent"] else None
-                for day_num in range(1, total_days + 1):
-                    is_last = day_num == total_days
-                    days.append({
-                        "day_number": day_num,
-                        "title": f"Day {day_num}：{'下山段' if is_last else '上山段'}",
-                        "distance_km": daily_dist,
-                        "elevation_gain_m": daily_ascent if not is_last else None,
-                        "key_segments": [f"预计行进 {daily_dist} km"],
-                        "lodging_suggestion": "需提前确认沿途住宿" if not is_last else None,
-                        "notes": ["注意分配体力，留足余量"],
-                    })
+            daily_dist = round(distance / hiking_days_available, 1)
+            daily_ascent = round(agg["total_ascent"] / hiking_days_available, 0) if agg["total_ascent"] else None
+            for active_index in range(1, hiking_days_available + 1):
+                is_last_hiking_day = active_index == hiking_days_available
+                segment_label = "单日徒步" if hiking_days_available == 1 else ("下山/收尾段" if is_last_hiking_day else "上山/主线段")
+                days.append({
+                    "day_number": day_number,
+                    "title": f"Day {day_number}：{segment_label}",
+                    "distance_km": daily_dist,
+                    "elevation_gain_m": daily_ascent if not is_last_hiking_day else None,
+                    "key_segments": [
+                        f"覆盖 {'→'.join(route_names[:4])}",
+                        f"预计行进 {daily_dist} km，核心徒步总耗时约 {duration:.1f} 小时",
+                    ],
+                    "lodging_suggestion": "需提前确认沿途住宿" if not is_last_hiking_day else None,
+                    "notes": ["注意分配体力，留足余量"],
+                })
+                day_number += 1
+
+        while day_number <= total_days:
+            days.append({
+                "day_number": day_number,
+                "title": f"Day {day_number}：周边游览与机动缓冲",
+                "distance_km": None,
+                "elevation_gain_m": None,
+                "key_segments": [
+                    f"在 {request.destination} 周边安排轻量游览、摄影或休整",
+                    "预留天气变化、交通接驳和返程缓冲",
+                ],
+                "lodging_suggestion": "可继续住景区周边或转住返程交通更便利的城镇",
+                "notes": ["用户选择天数多于核心徒步所需，已加入舒缓安排"],
+            })
+            day_number += 1
 
         from app.models import DayPlan
         return Itinerary(
             is_multi_day=is_multi,
             total_days=total_days,
             days=[DayPlan(**d) for d in days],
-            notes=["行程为模板建议，请根据实际路线和体力调整"],
+            notes=[
+                "行程为模板建议，请根据实际路线、天气和体力调整",
+                *context["notes"],
+            ],
         )
+
+    def itinerary_planning_context(
+        self,
+        request: HikingGuideRequest,
+        candidates: list[RouteCandidate],
+        agg: dict | None = None,
+    ) -> dict[str, Any]:
+        agg = agg or self._aggregate_candidates(candidates)
+        target_hours = _target_daily_hiking_hours(request.fitness_level)
+        min_by_duration = max(1, ceil(float(agg["total_duration"]) / target_hours))
+        min_by_distance = max(1, ceil(float(agg["total_distance"]) / 18.0))
+        minimum_days = max(min_by_duration, min_by_distance)
+        reasonable_max = minimum_days + 3
+        requested_days = _requested_trip_days(request)
+        notes: list[str] = [
+            f"按路线约 {agg['total_distance']:.1f} km / {agg['total_duration']:.1f} 小时估算，核心徒步最短建议 {minimum_days} 天。",
+            f"合理行程范围建议为 {minimum_days}-{reasonable_max} 天。",
+        ]
+        mode = "estimated"
+        planned_days = minimum_days
+        if requested_days is not None:
+            if requested_days < minimum_days:
+                planned_days = minimum_days
+                mode = "too_short"
+                notes.append(
+                    f"你选择了 {requested_days} 天，短于最短建议 {minimum_days} 天；已按最短可行日程规划，并建议调整日期。"
+                )
+            elif requested_days <= reasonable_max:
+                planned_days = requested_days
+                mode = "relaxed" if requested_days > minimum_days else "matched"
+                if requested_days > minimum_days:
+                    notes.append(
+                        f"你选择了 {requested_days} 天，多出的时间已用于抵达适应、周边游览或机动缓冲。"
+                    )
+            else:
+                planned_days = reasonable_max
+                mode = "too_long"
+                notes.append(
+                    f"你选择了 {requested_days} 天，明显长于路线本身需要；建议压缩到 {minimum_days}-{reasonable_max} 天，本次按 {reasonable_max} 天展示。"
+                )
+
+        return {
+            "requested_days": requested_days,
+            "minimum_days": minimum_days,
+            "reasonable_min_days": minimum_days,
+            "reasonable_max_days": reasonable_max,
+            "planned_days": planned_days,
+            "mode": mode,
+            "target_daily_hiking_hours": target_hours,
+            "notes": notes,
+        }
 
     def _template_gear_list(self, request: HikingGuideRequest, candidates: list[RouteCandidate], agg: dict) -> GearList | None:
         if not candidates:
@@ -391,6 +469,45 @@ class BailianQwenGuideProvider:
     def enabled(self) -> bool:
         return bool(self.api_key)
 
+    def test_connection(self) -> dict[str, object]:
+        if not self.api_key:
+            raise RuntimeError("DASHSCOPE_API_KEY or BAILIAN_API_KEY is not configured")
+
+        try:
+            import dashscope
+        except ModuleNotFoundError as exc:
+            raise RuntimeError("dashscope package is not installed; run `pip install -e .`") from exc
+
+        dashscope.base_http_api_url = self.base_http_api_url
+        started = perf_counter()
+        messages = [
+            {
+                "role": "user",
+                "content": [{"text": "只回复 OK"}],
+            }
+        ]
+        try:
+            response = dashscope.MultiModalConversation.call(
+                api_key=self.api_key,
+                model=self.model,
+                messages=messages,
+                parameters={"max_tokens": 2},
+            )
+        except TypeError:
+            response = dashscope.MultiModalConversation.call(
+                api_key=self.api_key,
+                model=self.model,
+                messages=messages,
+            )
+        self._raise_for_dashscope_error(response)
+        text = str(self._extract_text(response) or "").strip()
+        return {
+            "ok": True,
+            "model": self.model,
+            "elapsed_ms": round((perf_counter() - started) * 1000),
+            "reply_preview": text[:20],
+        }
+
     def generate_guide(
         self,
         request: HikingGuideRequest,
@@ -442,7 +559,11 @@ class BailianQwenGuideProvider:
                                 "   - \"seasonal_notes\": 季节性注意事项(str[])\n\n"
                                 "重要规则：route_candidates 中的多条路线通常是同一条步道的多个分段拼接（而非备选路线）。"
                                 "请将所有分段的距离和耗时相加得到全程数据，行程日程要覆盖全部分段，"
-                                "summary 中要体现全程总距离和总耗时。\n\n"
+                                "summary 中要体现全程总距离和总耗时。\n"
+                                "若输入 JSON 含 itinerary_planning，必须遵守其中 planned_days 生成对应天数的 days；"
+                                "当 mode 为 too_short/too_long/relaxed 时，要在 summary 或 recommendations 中提示"
+                                "用户选择天数、最短建议天数和合理范围。用户天数比最短建议多 1-3 天时，"
+                                "不要删减天数，应加入抵达适应、周边游览、摄影休整或天气缓冲。\n\n"
                                 f"输入 JSON：{self._build_prompt_payload(request, candidates, warnings, data_sources, travel_research, transport_plan)}"
                             )
                         }
@@ -630,6 +751,10 @@ class BailianQwenGuideProvider:
                     }
                     for candidate in candidates
                 ],
+                "itinerary_planning": TemplateGuideProvider().itinerary_planning_context(
+                    request,
+                    candidates,
+                ) if candidates else None,
                 "warnings": warnings,
                 "data_sources": data_sources,
                 "travel_research": travel_research.model_dump() if travel_research else None,
@@ -773,3 +898,18 @@ def _string_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
     return [str(item).strip() for item in value if str(item).strip()]
+
+
+def _requested_trip_days(request: HikingGuideRequest) -> int | None:
+    if not request.date_range:
+        return None
+    start, end = request.date_range
+    return max(1, (end - start).days + 1)
+
+
+def _target_daily_hiking_hours(fitness_level: str | None) -> float:
+    if fitness_level == "beginner":
+        return 6.0
+    if fitness_level == "advanced":
+        return 9.0
+    return 8.0

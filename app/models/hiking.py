@@ -184,6 +184,15 @@ class GuideDecision(BaseModel):
     priority_notes: list[str] = Field(default_factory=list)
 
 
+class AgentTraceEvent(BaseModel):
+    phase: str
+    title: str
+    status: str = Field(description="running | completed | skipped | fallback | warning")
+    detail: str | None = None
+    tool_name: str | None = None
+    rationale: list[str] = Field(default_factory=list)
+
+
 class WeatherDetail(BaseModel):
     title: str
     detail: str
@@ -282,6 +291,7 @@ class HikingGuideResponse(BaseModel):
     recommendations: list[str]
     data_sources: list[str]
     llm_usage: list[str] = Field(default_factory=list)
+    agent_trace: list[AgentTraceEvent] = Field(default_factory=list)
     clarifying_questions: list[str] = Field(default_factory=list)
     validation_notes: list[str] = Field(default_factory=list)
     warnings: list[str]

@@ -13,6 +13,7 @@ from app.models import (
     WeatherDetail,
 )
 from app.providers.llm import TemplateGuideProvider
+from app.providers.llm import GuideDraft
 from app.providers.transport import StaticTransportProvider
 from app.providers.travel_research import StaticTravelResearchProvider
 from app.providers.weather import WeatherSnapshot
@@ -54,6 +55,25 @@ class FailingPlanningProvider:
 class FailingLLMProvider:
     def generate_guide(self, *args, **kwargs):
         raise RuntimeError("composer down")
+
+
+class TwoDayLLMProvider:
+    def generate_guide(self, *args, **kwargs):
+        from app.models import DayPlan, Itinerary
+
+        return GuideDraft(
+            summary="LLM 给了两天。",
+            recommendations=["核对天气"],
+            source="bailian:test",
+            itinerary=Itinerary(
+                is_multi_day=True,
+                total_days=2,
+                days=[
+                    DayPlan(day_number=1, title="Day 1", distance_km=6, key_segments=[]),
+                    DayPlan(day_number=2, title="Day 2", distance_km=6, key_segments=[]),
+                ],
+            ),
+        )
 
 
 class RecordingWeatherProvider:
@@ -299,6 +319,28 @@ def test_agent_tool_plan_controls_weather_research_and_transport() -> None:
     ]
     assert len(transport.calls) == 1
     assert response.llm_usage[0] == "planner:llm"
+    assert response.agent_trace
+    assert "Planner 选择工具" in [event.title for event in response.agent_trace]
+    assert any(event.tool_name == "transport_options_tool" for event in response.agent_trace)
+
+
+def test_agent_streams_trace_events_before_final_response() -> None:
+    agent = HikingGuideAgent(
+        planner_service=RecordingPlanner(),
+        analysis_service=RouteAnalysisService(),
+        travel_research_provider=StaticTravelResearchProvider(),
+        transport_provider=StaticTransportProvider(),
+        planning_provider=FixedPlanningProvider(GuideToolPlan(compose_with_llm=False)),
+        llm_provider=TemplateGuideProvider(),
+    )
+
+    events = list(agent.generate_events(HikingGuideRequest(destination="武功山", start_city="上海")))
+
+    assert events[0]["event"] == "trace"
+    assert events[-1]["event"] == "final"
+    assert events[-1]["response"]["summary"]
+    assert events[-1]["response"]["agent_trace"]
+    assert "Planner 选择工具" in [event["title"] for event in events if event["event"] == "trace"]
 
 
 def test_agent_queries_weather_once_for_multi_route_kml() -> None:
@@ -380,7 +422,7 @@ def test_agent_degrades_failing_tool_planner_to_default_plan() -> None:
         {"include_lodging": True, "include_food": True, "include_supply": True}
     ]
     assert "planner:default" in response.llm_usage
-    assert any("LLM 工具调度暂不可用" in warning for warning in response.warnings)
+    assert any("LLM planner 暂不可用" in warning for warning in response.warnings)
 
 
 def test_agent_degrades_failing_final_llm_to_template() -> None:
@@ -397,6 +439,29 @@ def test_agent_degrades_failing_final_llm_to_template() -> None:
 
     assert "composer:template" in response.llm_usage
     assert any("百炼模型暂不可用" in warning for warning in response.warnings)
+
+
+def test_agent_corrects_llm_itinerary_to_user_selected_days() -> None:
+    agent = HikingGuideAgent(
+        planner_service=RecordingPlanner(),
+        analysis_service=RouteAnalysisService(),
+        travel_research_provider=StaticTravelResearchProvider(),
+        transport_provider=StaticTransportProvider(),
+        planning_provider=FixedPlanningProvider(GuideToolPlan()),
+        llm_provider=TwoDayLLMProvider(),
+    )
+
+    response = agent.generate(
+        HikingGuideRequest(
+            destination="武功山",
+            start_city="上海",
+            date_range=(__import__("datetime").date(2026, 7, 1), __import__("datetime").date(2026, 7, 4)),
+        )
+    )
+
+    assert response.itinerary is not None
+    assert response.itinerary.total_days == 4
+    assert any("校准行程为 4 天" in note for note in response.validation_notes)
 
 
 def test_agent_keeps_non_blocking_clarifying_questions() -> None:

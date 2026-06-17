@@ -1,5 +1,5 @@
 from app.models import Coordinate, TransportPlan
-from app.providers.transport import AmadeusFlightPriceProvider, StaticTransportProvider
+from app.providers.transport import AmapDrivingDurationProvider, SerpApiFlightSearchProvider, StaticTransportProvider
 
 
 def test_static_transport_provider_returns_generic_plan() -> None:
@@ -51,42 +51,77 @@ def test_static_transport_plan_serialization() -> None:
     assert any(option["mode"] == "flight" for option in data["options"])
 
 
-def test_amadeus_flight_provider_parses_cheapest_offer(monkeypatch) -> None:
+def test_serpapi_flight_provider_parses_cheapest_offer(monkeypatch) -> None:
     calls = []
 
-    def fake_post(url, data, timeout):
-        calls.append(("POST", url, data))
-        return __import__("httpx").Response(
-            200,
-            request=__import__("httpx").Request("POST", url),
-            json={"access_token": "token"},
-        )
-
-    def fake_get(url, headers, params, timeout):
+    def fake_get(url, params, timeout):
         calls.append(("GET", url, params))
         return __import__("httpx").Response(
             200,
             request=__import__("httpx").Request("GET", url),
             json={
-                "data": [
+                "best_flights": [
                     {
-                        "price": {"grandTotal": "980.00", "currency": "CNY"},
-                        "itineraries": [{"segments": [{"departure": {"iataCode": "SHA"}, "arrival": {"iataCode": "KHN"}, "carrierCode": "MU", "number": "1234"}]}],
+                        "price": 980,
+                        "total_duration": 135,
+                        "flights": [
+                            {
+                                "departure_airport": {"id": "SHA", "time": "2026-07-01 08:00"},
+                                "arrival_airport": {"id": "KHN", "time": "2026-07-01 10:15"},
+                                "airline": "China Eastern",
+                                "flight_number": "MU 1234",
+                            }
+                        ],
                     },
-                    {"price": {"grandTotal": "1200.00", "currency": "CNY"}},
-                ]
+                    {"price": 1200, "total_duration": 180, "flights": []},
+                ],
             },
         )
 
     import httpx
 
-    monkeypatch.setattr(httpx, "post", fake_post)
     monkeypatch.setattr(httpx, "get", fake_get)
 
-    provider = AmadeusFlightPriceProvider(client_id="id", client_secret="secret")
+    provider = SerpApiFlightSearchProvider(api_key="serpapi-key")
     option = provider.cheapest_offer("上海", "武功山", __import__("datetime").date(2026, 7, 1))
 
     assert option.mode == "flight"
-    assert option.price_estimate == "980.00 CNY"
-    assert option.source == "amadeus-flight-offers"
+    assert option.price_estimate == "980 CNY"
+    assert option.duration_hours == 2.2
+    assert option.source == "serpapi-google-flights"
     assert any("SHA" in step and "KHN" in step for step in option.steps)
+    assert calls[0][2]["engine"] == "google_flights"
+    assert calls[0][2]["departure_id"] == "SHA"
+    assert calls[0][2]["arrival_id"] == "KHN"
+
+
+def test_amap_driving_provider_parses_duration_and_distance(monkeypatch) -> None:
+    calls = []
+
+    def fake_get(url, params, timeout):
+        calls.append((url, params))
+        if "geocode" in url:
+            return __import__("httpx").Response(
+                200,
+                request=__import__("httpx").Request("GET", url),
+                json={"geocodes": [{"location": "121.4737,31.2304"}]},
+            )
+        return __import__("httpx").Response(
+            200,
+            request=__import__("httpx").Request("GET", url),
+            json={"route": {"paths": [{"duration": "14400", "distance": "520000"}]}},
+        )
+
+    import httpx
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    provider = AmapDrivingDurationProvider(api_key="amap-key")
+    option = provider.estimate("上海", Coordinate(lon=114.17, lat=27.46))
+
+    assert option.mode == "driving"
+    assert option.duration_hours == 4.0
+    assert option.distance_km == 520.0
+    assert option.source == "amap-driving"
+    assert any("高德估算驾车约 4.0 小时" in step for step in option.steps)
+    assert calls[1][1]["origin"] == "121.4737,31.2304"
