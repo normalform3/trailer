@@ -53,3 +53,43 @@ def test_route_analysis_degrades_when_elevation_provider_fails() -> None:
     assert analysis.elevation.ascent_m is None
     assert any("海拔服务暂不可用" in warning for warning in analysis.warnings)
     assert any("缺少完整海拔数据" in warning for warning in analysis.warnings)
+
+
+def test_route_analysis_ignores_small_elevation_noise() -> None:
+    route = RouteGeometry(
+        name="noisy-level-then-climb",
+        source=RouteSource.USER_KML,
+        confidence=0.9,
+        coordinates=[
+            Coordinate(lon=0.000, lat=0, elevation_m=100),
+            Coordinate(lon=0.001, lat=0, elevation_m=103),
+            Coordinate(lon=0.002, lat=0, elevation_m=99),
+            Coordinate(lon=0.003, lat=0, elevation_m=102),
+            Coordinate(lon=0.004, lat=0, elevation_m=100),
+            Coordinate(lon=0.005, lat=0, elevation_m=120),
+        ],
+    )
+
+    _, analysis = RouteAnalysisService().analyze(route)
+
+    assert analysis.elevation.ascent_m == 20
+    assert analysis.elevation.descent_m == 0
+
+
+def test_route_analysis_keeps_gradual_climbs_below_per_point_threshold() -> None:
+    route = RouteGeometry(
+        name="gradual-climb",
+        source=RouteSource.USER_KML,
+        confidence=0.9,
+        coordinates=[
+            Coordinate(lon=0.000, lat=0, elevation_m=100),
+            Coordinate(lon=0.001, lat=0, elevation_m=103),
+            Coordinate(lon=0.002, lat=0, elevation_m=106),
+            Coordinate(lon=0.003, lat=0, elevation_m=109),
+        ],
+    )
+
+    _, analysis = RouteAnalysisService().analyze(route)
+
+    assert analysis.elevation.ascent_m == 9
+    assert analysis.elevation.descent_m == 0

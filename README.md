@@ -72,6 +72,7 @@ export AMAP_WEB_KEY="你的高德地图 JS API Key"   # 前端地图渲染用
 export DASHSCOPE_API_KEY="你的百炼 DashScope API Key"
 export ORS_API_KEY="你的 OpenRouteService API Key"  # 可选，路线规划兜底
 export SERPAPI_API_KEY="你的 SerpApi API Key"  # 可选，Google Flights 机票搜索
+export JUHE_MCP_TOKEN="你的聚合 MCP Token"      # 可选，优先查询机票和火车票
 ```
 
 也可以直接编辑 `config/settings.toml`：
@@ -85,6 +86,10 @@ serpapi_api_key = "你的 SerpApi Key"
 ```
 
 > **注意：** 请勿将真实 API 密钥提交到版本控制。生产环境建议使用环境变量或 `.env` 文件。
+
+配置 `JUHE_MCP_TOKEN` 后，系统只会调用聚合 MCP 的只读工具
+`query_train_tickets` 和 `get_flight_info`。不会调用订票或支付工具；Token
+不会发送到浏览器，也不会从 `config/settings.toml` 读取。
 
 ### 启动
 

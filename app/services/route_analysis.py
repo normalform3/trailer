@@ -6,6 +6,12 @@ from app.providers.weather import WeatherSnapshot
 from app.services.geo import line_distance_m
 
 
+# KML/GPS altitude commonly oscillates by a few metres even on level ground.
+# Treat smaller reversals as measurement noise instead of accumulating every
+# saw-tooth as real ascent/descent.
+ELEVATION_REVERSAL_THRESHOLD_M = 5.0
+
+
 class RouteAnalysisService:
     def __init__(self, elevation_provider: ElevationProvider | None = None) -> None:
         self.elevation_provider = elevation_provider or ExistingElevationProvider()
@@ -55,15 +61,16 @@ class RouteAnalysisService:
                 descent_m=None,
             )
 
+        typed_elevations = [float(value) for value in elevations]
+        significant_points = self._significant_elevation_points(typed_elevations)
         ascent = 0.0
         descent = 0.0
-        typed_elevations = [float(value) for value in elevations]
-        for start, end in zip(typed_elevations, typed_elevations[1:], strict=False):
+        for start, end in zip(significant_points, significant_points[1:], strict=False):
             delta = end - start
             if delta > 0:
                 ascent += delta
-            else:
-                descent += abs(delta)
+            elif delta < 0:
+                descent -= delta
 
         return ElevationStats(
             min_m=round(min(typed_elevations), 1),
@@ -71,6 +78,43 @@ class RouteAnalysisService:
             ascent_m=round(ascent, 1),
             descent_m=round(descent, 1),
         )
+
+    def _significant_elevation_points(self, elevations: list[float]) -> list[float]:
+        """Collapse small altitude reversals while retaining real gradual slopes."""
+        if len(elevations) < 2:
+            return elevations
+
+        points = [elevations[0]]
+        anchor = elevations[0]
+        extreme = anchor
+        trend = 0  # 1 climbing, -1 descending, 0 not established
+
+        for elevation in elevations[1:]:
+            if trend == 0:
+                if elevation - anchor >= ELEVATION_REVERSAL_THRESHOLD_M:
+                    trend = 1
+                    extreme = elevation
+                elif anchor - elevation >= ELEVATION_REVERSAL_THRESHOLD_M:
+                    trend = -1
+                    extreme = elevation
+            elif trend > 0:
+                if elevation > extreme:
+                    extreme = elevation
+                elif extreme - elevation >= ELEVATION_REVERSAL_THRESHOLD_M:
+                    points.append(extreme)
+                    trend = -1
+                    extreme = elevation
+            else:
+                if elevation < extreme:
+                    extreme = elevation
+                elif elevation - extreme >= ELEVATION_REVERSAL_THRESHOLD_M:
+                    points.append(extreme)
+                    trend = 1
+                    extreme = elevation
+
+        if trend != 0 and extreme != points[-1]:
+            points.append(extreme)
+        return points
 
     def _estimate_duration_hours(self, distance_km: float, ascent_m: float | None) -> float:
         base = distance_km / 4.0

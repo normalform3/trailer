@@ -27,7 +27,7 @@ from app.providers.llm import (
     TemplateGuideProvider,
 )
 from app.providers.guide_reference import DefaultGuideReferenceProvider, GuideReferenceProvider
-from app.providers.transport import AmapTransportProvider, StaticTransportProvider, TransportPlanningProvider
+from app.providers.transport import StaticTransportProvider, TransportPlanningProvider
 from app.providers.travel_research import DefaultTravelResearchProvider, TravelResearchProvider
 from app.providers.weather import NoopWeatherProvider, WeatherProvider
 from app.providers.weather import WeatherSnapshot
@@ -460,7 +460,7 @@ class HikingGuideAgent:
 
         # 取首选路线起点作为目的地坐标
         dest_coord = candidates[0].route.start
-        dest_name = candidates[0].route.name
+        dest_name = request.destination
 
         try:
             departure_date = request.date_range[0] if request.date_range else None

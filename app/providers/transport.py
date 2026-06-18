@@ -7,6 +7,7 @@ import httpx
 
 from app.config import get_settings
 from app.models import Coordinate, TransportOption, TransportPlan
+from app.providers.juhe_mcp import JuheMcpTicketProvider
 
 
 class TransportPlanningProvider(Protocol):
@@ -39,16 +40,33 @@ class DrivingDurationProvider(Protocol):
         raise NotImplementedError
 
 
+class RailTicketProvider(Protocol):
+    def rail_offer(
+        self,
+        origin_city: str,
+        destination_name: str,
+        departure_date: date | None,
+    ) -> TransportOption:
+        raise NotImplementedError
+
+
 class RoughTransportProvider:
     """粗粒度出行方案：只罗列可选方式，不替用户做精确导航。"""
 
     def __init__(
         self,
         flight_provider: FlightPriceProvider | None = None,
+        rail_provider: RailTicketProvider | None = None,
         driving_provider: DrivingDurationProvider | None = None,
     ) -> None:
-        self.flight_provider = flight_provider or SerpApiFlightSearchProvider()
         settings = get_settings()
+        juhe_provider = (
+            JuheMcpTicketProvider(settings.api_keys.juhe_mcp_token)
+            if settings.api_keys.juhe_mcp_token
+            else None
+        )
+        self.flight_provider = flight_provider or juhe_provider or SerpApiFlightSearchProvider()
+        self.rail_provider = rail_provider or juhe_provider or UnavailableRailTicketProvider()
         self.driving_provider = (
             driving_provider
             if driving_provider is not None
@@ -70,11 +88,13 @@ class RoughTransportProvider:
             driving_option = self._driving_option(destination_name)
             warnings.append(f"高德自驾耗时暂不可用：{exc}")
 
-        options = [
-            driving_option,
-            self._rail_option(start_city, destination_name),
-            self._charter_option(destination_name),
-        ]
+        try:
+            rail_option = self.rail_provider.rail_offer(start_city, destination_name, departure_date)
+        except Exception as exc:  # noqa: BLE001 - ticket providers are optional.
+            rail_option = self._rail_option(start_city, destination_name)
+            warnings.append(f"火车票查询暂不可用：{exc}")
+
+        options = [driving_option, rail_option, self._charter_option(destination_name)]
 
         try:
             options.insert(1, self.flight_provider.cheapest_offer(start_city, destination_name, departure_date))
@@ -88,7 +108,7 @@ class RoughTransportProvider:
                         "再接高铁、汽车或包车前往登山口",
                     ],
                     tip="机票报价暂不可用，请在配置票价 API 后重试或自行核对航司/OTA",
-                    booking_hint="需要配置 SERPAPI_API_KEY，并补充可映射机场与出行日期",
+                    booking_hint="需要配置 JUHE_MCP_TOKEN 或 SERPAPI_API_KEY，并补充出行日期",
                     requires_user_verification=True,
                     source="flight-placeholder",
                 ),
@@ -300,6 +320,7 @@ class StaticTransportProvider(RoughTransportProvider):
     def __init__(self) -> None:
         super().__init__(
             flight_provider=UnavailableFlightPriceProvider(),
+            rail_provider=UnavailableRailTicketProvider(),
             driving_provider=UnavailableDrivingDurationProvider(),
         )
 
@@ -321,6 +342,16 @@ class UnavailableDrivingDurationProvider:
         destination_coordinate: Coordinate,
     ) -> TransportOption:
         raise RuntimeError("driving duration provider is not configured")
+
+
+class UnavailableRailTicketProvider:
+    def rail_offer(
+        self,
+        origin_city: str,
+        destination_name: str,
+        departure_date: date | None,
+    ) -> TransportOption:
+        raise RuntimeError("rail ticket provider is not configured")
 
 
 def _city_to_iata(value: str) -> str | None:

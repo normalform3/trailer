@@ -318,6 +318,7 @@ def test_agent_tool_plan_controls_weather_research_and_transport() -> None:
         {"include_lodging": True, "include_food": False, "include_supply": True}
     ]
     assert len(transport.calls) == 1
+    assert transport.calls[0][2] == "武功山"
     assert response.llm_usage[0] == "planner:llm"
     assert response.agent_trace
     assert "Planner 选择工具" in [event.title for event in response.agent_trace]

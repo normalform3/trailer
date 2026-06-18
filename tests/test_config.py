@@ -12,6 +12,7 @@ def test_load_settings_reads_config_file(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("BAILIAN_BASE_URL", raising=False)
     monkeypatch.delenv("DASHSCOPE_BASE_HTTP_API_URL", raising=False)
     monkeypatch.delenv("SERPAPI_API_KEY", raising=False)
+    monkeypatch.delenv("JUHE_MCP_TOKEN", raising=False)
     config_path = tmp_path / "settings.toml"
     config_path.write_text(
         """
@@ -46,6 +47,7 @@ def test_environment_variables_override_config_file(tmp_path: Path, monkeypatch)
     monkeypatch.setenv("AMAP_API_KEY", "amap-from-env")
     monkeypatch.setenv("BAILIAN_MODEL", "qwen-from-env")
     monkeypatch.setenv("SERPAPI_API_KEY", "serpapi-from-env")
+    monkeypatch.setenv("JUHE_MCP_TOKEN", "juhe-from-env")
     config_path = tmp_path / "settings.toml"
     config_path.write_text(
         """
@@ -63,4 +65,5 @@ def test_environment_variables_override_config_file(tmp_path: Path, monkeypatch)
 
     assert settings.api_keys.amap_api_key == "amap-from-env"
     assert settings.api_keys.serpapi_api_key == "serpapi-from-env"
+    assert settings.api_keys.juhe_mcp_token == "juhe-from-env"
     assert settings.bailian.model == "qwen-from-env"

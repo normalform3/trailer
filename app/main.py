@@ -15,7 +15,6 @@ from app.providers.transport import RoughTransportProvider
 from app.providers.weather import AmapWeatherProvider, CompositeWeatherProvider, DailyForecast, NoopWeatherProvider, OpenMeteoWeatherProvider, WeatherProvider
 from app.services.route_analysis import RouteAnalysisService
 from app.services.route_ingestion import RouteIngestionError, RouteIngestionService
-from app.services.geo import line_distance_m
 
 app = FastAPI(title="Trailer Hiking Guide Agent", version="0.1.0")
 

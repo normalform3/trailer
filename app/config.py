@@ -20,6 +20,7 @@ class ApiKeySettings:
     dashscope_api_key: str | None = None
     bailian_api_key: str | None = None
     serpapi_api_key: str | None = None
+    juhe_mcp_token: str | None = None
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,9 @@ def load_settings(config_path: Path = DEFAULT_CONFIG_PATH) -> AppSettings:
             ),
             bailian_api_key=_first_value(os.getenv("BAILIAN_API_KEY"), api_keys.get("bailian_api_key")),
             serpapi_api_key=_first_value(os.getenv("SERPAPI_API_KEY"), api_keys.get("serpapi_api_key")),
+            # The MCP token is intentionally environment-only so credentials can
+            # never be picked up from the tracked TOML configuration.
+            juhe_mcp_token=_first_value(os.getenv("JUHE_MCP_TOKEN")),
         ),
         bailian=BailianSettings(
             model=_first_value(os.getenv("BAILIAN_MODEL"), bailian.get("model")) or "qwen3.7-plus",
