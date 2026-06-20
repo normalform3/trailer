@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from queue import Queue
+from threading import Thread
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -9,12 +11,22 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from app.agents import HikingGuideAgent
 from app.config import get_settings
-from app.models import Coordinate, HikingGuideRequest, HikingGuideResponse
+from app.models import (
+    Coordinate,
+    HikingGuideRequest,
+    HikingGuideResponse,
+    RouteRecommendationRequest,
+    RouteRecommendationResponse,
+)
 from app.providers.llm import BailianQwenGuideProvider
 from app.providers.transport import RoughTransportProvider
 from app.providers.weather import AmapWeatherProvider, CompositeWeatherProvider, DailyForecast, NoopWeatherProvider, OpenMeteoWeatherProvider, WeatherProvider
 from app.services.route_analysis import RouteAnalysisService
 from app.services.route_ingestion import RouteIngestionError, RouteIngestionService
+from app.services.route_recommendations import (
+    RouteRecommendationService,
+    RouteRecommendationUnavailable,
+)
 
 app = FastAPI(title="Trailer Hiking Guide Agent", version="0.1.0")
 
@@ -39,6 +51,7 @@ _ingestion = RouteIngestionService()
 _analysis = RouteAnalysisService()
 _amap_weather = AmapWeatherProvider() if get_settings().api_keys.amap_api_key else None
 _open_meteo_weather = OpenMeteoWeatherProvider(timeout_s=15.0)
+_route_recommendation_service = RouteRecommendationService()
 DEFAULT_WEATHER_RANGE_DAYS = 7
 MAX_WEATHER_RANGE_DAYS = 16
 
@@ -72,6 +85,48 @@ def llm_health() -> dict[str, object]:
             "model": provider.model,
             "error": _public_llm_error(exc),
         }
+
+
+@app.post("/api/v1/route-recommendations", response_model=RouteRecommendationResponse)
+def recommend_routes(request: RouteRecommendationRequest) -> RouteRecommendationResponse:
+    """Discover evidence-backed route names before the user uploads a track."""
+    try:
+        return _route_recommendation_service.recommend(request)
+    except RouteRecommendationUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 - provider details are converted to a stable public error.
+        raise HTTPException(status_code=502, detail=_public_route_recommendation_error(exc)) from exc
+
+
+@app.post("/api/v1/route-recommendations/stream")
+def stream_route_recommendations(request: RouteRecommendationRequest) -> StreamingResponse:
+    """Stream route discovery phases while the LLM and map providers run."""
+
+    def event_stream():
+        events: Queue[dict[str, object] | None] = Queue()
+
+        def run() -> None:
+            try:
+                response = _route_recommendation_service.recommend(
+                    request,
+                    on_event=lambda event: events.put({"event": "trace", **event}),
+                )
+                events.put({"event": "final", "response": response.model_dump(mode="json")})
+            except RouteRecommendationUnavailable as exc:
+                events.put({"event": "error", "status_code": 503, "detail": str(exc)})
+            except Exception as exc:  # noqa: BLE001
+                events.put({"event": "error", "status_code": 502, "detail": _public_route_recommendation_error(exc)})
+            finally:
+                events.put(None)
+
+        Thread(target=run, daemon=True).start()
+        while True:
+            event = events.get()
+            if event is None:
+                break
+            yield _sse(event)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @app.post("/api/v1/kml-preview")
@@ -296,6 +351,15 @@ def _public_llm_error(exc: Exception) -> str:
     if "dashscope package is not installed" in text:
         return "未安装 dashscope 依赖"
     return text or exc.__class__.__name__
+
+
+def _public_route_recommendation_error(exc: Exception) -> str:
+    text = str(exc)
+    if "DASHSCOPE_API_KEY" in text or "BAILIAN_API_KEY" in text:
+        return "未配置 DASHSCOPE_API_KEY 或 BAILIAN_API_KEY"
+    if "dashscope" in text.lower() or "百炼" in text or "DashScope" in text:
+        return "百炼联网检索暂不可用，请检查当前模型是否支持联网搜索或稍后重试。"
+    return "路线推荐服务暂不可用，请稍后重试。"
 
 
 def _split_reference_links(value: str | None) -> list[str]:

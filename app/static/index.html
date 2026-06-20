@@ -2033,6 +2033,242 @@
       .rec-list { padding-left: 20px; }
       .rec-list li { padding: 4px 0; font-size: 14px; line-height: 1.7; }
 
+      /* ---- Route Discovery ---- */
+      .discovery-board {
+        position: relative;
+        overflow: hidden;
+        padding: clamp(24px, 5vw, 54px);
+        background:
+          linear-gradient(118deg, rgba(255,250,240,0.98) 0 62%, rgba(223,232,202,0.72) 62%),
+          var(--panel);
+      }
+
+      .discovery-board::after {
+        content: "";
+        position: absolute;
+        width: 260px;
+        height: 260px;
+        right: -70px;
+        top: -90px;
+        border: 1px solid rgba(80,104,62,0.22);
+        border-radius: 46% 54% 58% 42%;
+        box-shadow: inset 0 0 0 34px rgba(80,104,62,0.035), inset 0 0 0 72px rgba(80,104,62,0.035);
+        transform: rotate(18deg);
+        pointer-events: none;
+      }
+
+      .discovery-kicker {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--clay);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .discovery-kicker::before { content: ""; width: 36px; height: 1px; background: var(--clay); }
+
+      .discovery-board h2 {
+        max-width: 680px;
+        margin: 16px 0 10px;
+        font-family: Georgia, "Times New Roman", serif;
+        color: var(--moss-dark);
+        font-size: clamp(28px, 4vw, 46px);
+        line-height: 1.08;
+      }
+
+      .discovery-lead { max-width: 680px; margin: 0 0 22px; color: var(--muted); line-height: 1.7; }
+
+      .discovery-compose {
+        position: relative;
+        z-index: 1;
+        max-width: 850px;
+        border: 1px solid rgba(80,104,62,0.34);
+        border-radius: 12px;
+        background: rgba(255,252,244,0.94);
+        box-shadow: 0 18px 46px rgba(53,66,43,0.12);
+        overflow: hidden;
+      }
+
+      .discovery-compose textarea {
+        width: 100%;
+        min-height: 128px;
+        resize: vertical;
+        border: 0;
+        outline: 0;
+        padding: 20px 22px 10px;
+        color: var(--ink);
+        background: transparent;
+        font-size: 17px;
+        line-height: 1.7;
+      }
+
+      .discovery-compose-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px 12px 20px;
+      }
+
+      .discovery-count { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+      .discovery-submit {
+        border: 0;
+        border-radius: 8px;
+        padding: 11px 18px;
+        background: var(--moss-dark);
+        color: #fff9e8;
+        font-weight: 900;
+        cursor: pointer;
+        box-shadow: 0 8px 18px rgba(38,53,31,0.2);
+      }
+
+      .discovery-submit:hover { background: var(--moss); transform: translateY(-1px); }
+      .discovery-submit:disabled { opacity: 0.58; cursor: wait; transform: none; }
+
+      .discovery-examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+      .discovery-example {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 7px 12px;
+        background: rgba(255,252,244,0.72);
+        color: var(--muted);
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .discovery-example:hover { color: var(--moss-dark); border-color: var(--moss); background: var(--fern); }
+
+      .discovery-results { margin-top: 20px; display: grid; gap: 16px; }
+      .search-workbench {
+        display: grid;
+        grid-template-columns: minmax(230px,.72fr) minmax(0,1.28fr);
+        gap: 14px;
+        padding: 16px;
+        border: 1px solid rgba(80,104,62,.24);
+        border-radius: 9px;
+        background: rgba(255,252,244,.82);
+        box-shadow: 0 12px 34px rgba(50,45,30,.07);
+      }
+      .search-workbench-head { padding: 3px 4px; }
+      .search-workbench-head strong { display: block; color: var(--moss-dark); font-family: Georgia,serif; font-size: 20px; }
+      .search-workbench-head p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+      .search-live-badge { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 12px; color: var(--clay); font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+      .search-live-badge::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--clay); box-shadow:0 0 0 0 rgba(166,83,43,.35); animation:pulse-icon 1.5s infinite; }
+      .search-live-badge.done::before { background:var(--moss); animation:none; }
+      .search-timeline { display:grid; gap:8px; }
+      .search-event { display:grid; grid-template-columns:20px 1fr; gap:9px; padding:9px 10px; border:1px solid rgba(80,104,62,.12); border-radius:7px; background:#fffcf4; }
+      .search-event-mark { width:11px; height:11px; margin-top:4px; border-radius:50%; background:var(--line); border:2px solid #fffcf4; box-shadow:0 0 0 1px var(--line); }
+      .search-event.running .search-event-mark { background:var(--sun); box-shadow:0 0 0 1px var(--clay); animation:pulse-icon 1.5s infinite; }
+      .search-event.completed .search-event-mark { background:var(--moss); box-shadow:0 0 0 1px var(--moss); }
+      .search-event.warning .search-event-mark { background:var(--clay); box-shadow:0 0 0 1px var(--clay); }
+      .search-event-title { color:var(--moss-dark); font-size:12px; font-weight:900; }
+      .search-event-detail { margin-top:2px; color:var(--muted); font-size:11px; line-height:1.5; }
+      .search-query-list,.search-name-list { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+      .search-query-pill,.search-name-pill { padding:4px 7px; border-radius:4px; background:rgba(223,232,202,.42); color:var(--moss-dark); font-size:10px; }
+      .search-name-pill { background:rgba(244,198,90,.18); color:var(--clay); }
+      .discovery-status {
+        padding: 18px;
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        color: var(--muted);
+        background: rgba(255,252,244,0.66);
+        line-height: 1.65;
+      }
+
+      .intent-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+      .intent-label { color: var(--muted); font-size: 12px; font-weight: 900; margin-right: 3px; }
+      .intent-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border: 1px solid rgba(80,104,62,0.25);
+        border-radius: 999px;
+        padding: 6px 9px 6px 11px;
+        background: rgba(223,232,202,0.42);
+        color: var(--moss-dark);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .intent-chip button { border: 0; padding: 0; background: transparent; color: var(--muted); cursor: pointer; }
+
+      .clarify-card {
+        display: grid;
+        grid-template-columns: minmax(0,1fr) auto;
+        gap: 14px;
+        align-items: center;
+        padding: 16px 18px;
+        border-left: 4px solid var(--sun);
+        background: rgba(244,198,90,0.13);
+      }
+      .clarify-card strong { display: block; color: var(--moss-dark); margin-bottom: 4px; }
+      .clarify-options { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+      .clarify-options button { border: 1px solid var(--line); border-radius: 999px; background: #fffcf4; padding: 7px 11px; color: var(--ink); font-size: 12px; cursor: pointer; }
+      .clarify-options button:hover { border-color: var(--moss); background: var(--fern); }
+
+      .route-candidate-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+      .route-candidate {
+        position: relative;
+        display: grid;
+        grid-template-rows: auto auto 1fr auto;
+        gap: 13px;
+        min-width: 0;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #fffcf4;
+        box-shadow: 0 12px 34px rgba(50,45,30,0.08);
+        transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+      }
+      .route-candidate:hover { transform: translateY(-3px); border-color: var(--moss); box-shadow: 0 18px 42px rgba(50,45,30,0.13); }
+      .candidate-index { color: var(--clay); font-family: Georgia, serif; font-size: 12px; font-style: italic; }
+      .candidate-head { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+      .candidate-head h3 { margin: 0; color: var(--moss-dark); font-family: Georgia, serif; font-size: 21px; line-height: 1.2; }
+      .candidate-region { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+      .candidate-score { width: 52px; height: 52px; flex: 0 0 auto; border: 1px solid rgba(80,104,62,.28); border-radius: 50%; display: grid; place-items: center; color: var(--moss-dark); background: var(--fern); font-weight: 900; font-size: 16px; }
+      .candidate-score small { display: block; margin-top: -13px; font-size: 8px; color: var(--muted); font-weight: 800; }
+      .candidate-summary { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+      .candidate-facts { display: flex; flex-wrap: wrap; gap: 6px; }
+      .candidate-fact { padding: 5px 8px; border-radius: 5px; background: rgba(223,232,202,.32); color: var(--ink); font-size: 11px; }
+      .candidate-reasons { margin: 0; padding-left: 17px; color: var(--ink); font-size: 12px; line-height: 1.6; }
+      .candidate-actions { display: grid; grid-template-columns: auto 1fr; gap: 8px; }
+      .candidate-actions button { border-radius: 7px; padding: 9px 11px; font-size: 12px; font-weight: 900; cursor: pointer; }
+      .candidate-detail { border: 1px solid var(--line); color: var(--moss-dark); background: transparent; }
+      .candidate-select { border: 1px solid var(--moss-dark); color: #fff9e8; background: var(--moss-dark); }
+      .candidate-source-list { display:grid; gap:7px; align-content:start; }
+      .candidate-source-link { display:block; padding:8px 9px; border:1px solid var(--line); border-radius:6px; color:var(--moss-dark); background:rgba(223,232,202,.2); font-size:11px; font-weight:800; text-decoration:none; }
+      .candidate-source-link:hover { border-color:var(--moss); background:var(--fern); }
+
+      .discovery-warnings { display: grid; gap: 6px; }
+      .discovery-warning { color: var(--clay); font-size: 12px; line-height: 1.5; }
+
+      .selected-route-notice {
+        display: none;
+        margin-bottom: 14px;
+        padding: 14px 16px;
+        border: 1px solid rgba(80,104,62,.32);
+        border-radius: 8px;
+        background: var(--fern);
+        color: var(--moss-dark);
+        line-height: 1.55;
+      }
+      .selected-route-notice.show { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+      .selected-route-notice strong { display: block; }
+      .selected-route-notice span { color: var(--muted); font-size: 12px; }
+
+      .route-detail-backdrop { display: none; position: fixed; inset: 0; z-index: 1100; background: rgba(22,33,24,.38); backdrop-filter: blur(3px); }
+      .route-detail-backdrop.show { display: block; }
+      .route-detail-drawer { position: absolute; right: 0; top: 0; bottom: 0; width: min(560px, 94vw); overflow: auto; padding: 28px; background: var(--paper); box-shadow: -24px 0 70px rgba(22,33,24,.24); }
+      .drawer-close { float: right; width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 50%; background: #fffcf4; cursor: pointer; }
+      .route-detail-drawer h2 { margin: 34px 0 6px; color: var(--moss-dark); font-family: Georgia, serif; font-size: 30px; }
+      .drawer-section { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+      .drawer-section h3 { margin: 0 0 10px; color: var(--moss-dark); font-size: 14px; }
+      .drawer-section ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+      .drawer-source { display: block; padding: 10px 0; color: var(--moss-dark); font-size: 13px; font-weight: 800; text-decoration: none; }
+      .drawer-source small { display: block; margin-top: 3px; color: var(--muted); font-weight: 400; line-height: 1.5; }
+
       /* ---- Back Button ---- */
       .btn-back {
         display: inline-flex;
@@ -2104,6 +2340,17 @@
         .poi-workbench {
           grid-template-columns: 1fr;
         }
+
+        .route-candidate-grid { grid-template-columns: 1fr; }
+        .search-workbench { grid-template-columns:1fr; }
+        .discovery-board { background: rgba(255,250,240,.92); }
+      }
+
+      @media (max-width: 620px) {
+        .module-tab { padding: 11px 14px; font-size: 13px; }
+        .discovery-compose-foot, .clarify-card { display: grid; grid-template-columns: 1fr; align-items: stretch; }
+        .clarify-options { justify-content: flex-start; }
+        .selected-route-notice.show { display: grid; }
       }
     </style>
   </head>
@@ -2138,12 +2385,13 @@
 
       <!-- Module Tabs -->
       <nav class="module-tabs">
-        <button class="module-tab active" data-module="parse">上传路线</button>
-        <button class="module-tab disabled" data-module="plan">规划路线 <span class="badge-soon">开发中</span></button>
+        <button class="module-tab active" data-module="plan">发现路线</button>
+        <button class="module-tab" data-module="parse">上传轨迹</button>
       </nav>
 
       <!-- ========== Module 1: Route Parsing ========== -->
-      <div id="module-parse" class="module-content active">
+      <div id="module-parse" class="module-content">
+        <div id="selected-route-notice" class="selected-route-notice" role="status"></div>
         <!-- Upload Area -->
         <div class="panel" style="margin-bottom: 0;">
           <div id="upload-zone" class="upload-zone">
@@ -2172,17 +2420,32 @@
         </div>
       </div>
 
-      <!-- ========== Module 2: Route Planning (Coming Soon) ========== -->
-      <div id="module-plan" class="module-content">
-        <div class="panel">
-          <div class="placeholder-module">
-            <div class="placeholder-icon">🗺</div>
-            <h2>智能路线规划</h2>
-            <p>只需填写目的地和出行偏好，系统将为你规划当地徒步路线，并生成完整攻略。<br>此功能正在开发中，敬请期待。</p>
+      <!-- ========== Module 2: Evidence-backed Route Discovery ========== -->
+      <div id="module-plan" class="module-content active">
+        <div class="panel discovery-board">
+          <div class="discovery-kicker">Route discovery · 全国路线发现</div>
+          <h2>先说你想走怎样的山路。</h2>
+          <p class="discovery-lead">系统只推荐能够找到公开来源的路线名称。选中后，请上传对应轨迹，再进行距离、海拔、天气和风险分析。</p>
+          <div class="discovery-compose">
+            <textarea id="route-discovery-query" maxlength="1000" placeholder="例如：杭州周边，周末一天，新手，想看溪流和竹林，不想爬升太大，公共交通可达。"></textarea>
+            <div class="discovery-compose-foot">
+              <span class="discovery-count" id="route-discovery-count">0 / 1000</span>
+              <button class="discovery-submit" id="route-discovery-submit" type="button">寻找有来源的路线 →</button>
+            </div>
+          </div>
+          <div class="discovery-examples" aria-label="示例需求">
+            <button class="discovery-example" type="button">上海周边 · 新手 · 公交可达</button>
+            <button class="discovery-example" type="button">成都出发 · 两天 · 高山风景</button>
+            <button class="discovery-example" type="button">广州周边 · 溪流 · 6小时内</button>
           </div>
         </div>
+        <div id="route-discovery-results" class="discovery-results" aria-live="polite"></div>
       </div>
       </main>
+    </div>
+
+    <div id="route-detail-backdrop" class="route-detail-backdrop" role="dialog" aria-modal="true" aria-label="路线候选详情">
+      <aside id="route-detail-drawer" class="route-detail-drawer"></aside>
     </div>
 
     <script>
@@ -2200,6 +2463,13 @@
       const historyClearBtn = document.querySelector("#history-clear");
       const appFrameEl = document.querySelector(".app-frame");
       const historyToggleBtn = document.querySelector("#history-toggle");
+      const routeDiscoveryQueryEl = document.querySelector("#route-discovery-query");
+      const routeDiscoverySubmitBtn = document.querySelector("#route-discovery-submit");
+      const routeDiscoveryCountEl = document.querySelector("#route-discovery-count");
+      const routeDiscoveryResultsEl = document.querySelector("#route-discovery-results");
+      const routeDetailBackdropEl = document.querySelector("#route-detail-backdrop");
+      const routeDetailDrawerEl = document.querySelector("#route-detail-drawer");
+      const selectedRouteNoticeEl = document.querySelector("#selected-route-notice");
 
       // ---- AMap state ----
       let amapInstance = null;
@@ -2213,19 +2483,25 @@
       let lastKmlData = null;  // Store parsed KML data for weather queries
       let lastKmlFile = null;   // Store the original KML file for guide generation
       let lastParseHTML = null; // Store parse results HTML for back navigation
+      let routeDiscoveryData = null;
+      let routeDiscoveryClarifications = {};
+      let routeSearchEvents = [];
+      let selectedRouteDiscoveryCandidate = null;
       const HISTORY_KEY = "trailer.guideHistory.v1";
       const HISTORY_COLLAPSED_KEY = "trailer.historyCollapsed.v1";
       const ROUTE_COLORS = ["#50683e", "#a6532b", "#2e6b9e", "#7b4fa6", "#c47a1e"];
       const EMPTY_PARSE_HTML = `<div class="empty" id="parse-empty"><div><div class="empty-mark">△</div><h2>等待上传</h2><p>请上传 KML 轨迹文件，系统将自动解析并展示路线数据。</p></div></div>`;
 
       // ---- Module Tabs ----
+      function activateModule(moduleName) {
+        document.querySelectorAll(".module-tab").forEach(t => t.classList.toggle("active", t.dataset.module === moduleName));
+        document.querySelectorAll(".module-content").forEach(c => c.classList.toggle("active", c.id === `module-${moduleName}`));
+      }
+
       document.querySelectorAll(".module-tab").forEach(tab => {
         tab.addEventListener("click", () => {
           if (tab.classList.contains("disabled")) return;
-          document.querySelectorAll(".module-tab").forEach(t => t.classList.remove("active"));
-          document.querySelectorAll(".module-content").forEach(c => c.classList.remove("active"));
-          tab.classList.add("active");
-          document.querySelector(`#module-${tab.dataset.module}`).classList.add("active");
+          activateModule(tab.dataset.module);
         });
       });
 
@@ -2842,9 +3118,250 @@
           .replaceAll("'", "&#039;");
       }
 
+      // ---- Route Discovery ----
+      const INTENT_LABELS = {
+        destination_region: '地区', origin_city: '出发地', travel_date_or_season: '时间', trip_days: '天数',
+        fitness_level: '体能', min_distance_km: '最短距离', max_distance_km: '最长距离',
+        max_duration_hours: '最长耗时', max_ascent_m: '最大爬升', scenery_preferences: '景观',
+        transport_preference: '交通', camping_preference: '露营', exclusions: '排除'
+      };
+
+      function formatIntentValue(key, value) {
+        if (Array.isArray(value)) return value.join('、');
+        if (key === 'fitness_level') return ({beginner:'新手', intermediate:'有一定经验', advanced:'经验丰富'})[value] || value;
+        if (key === 'camping_preference') return value ? '希望露营' : '不露营';
+        if (key === 'trip_days') return `${value} 天`;
+        if (key.includes('distance')) return `${value} km`;
+        if (key === 'max_duration_hours') return `${value} 小时内`;
+        if (key === 'max_ascent_m') return `${value} m 内`;
+        return String(value);
+      }
+
+      function intentEntries(intent) {
+        return Object.entries(INTENT_LABELS).flatMap(([key, label]) => {
+          const value = intent ? intent[key] : null;
+          if (value == null || value === '' || (Array.isArray(value) && !value.length)) return [];
+          return [{ key, label, value: formatIntentValue(key, value), state: intent.field_states?.[key] || 'unknown' }];
+        });
+      }
+
+      async function requestRouteRecommendations() {
+        const query = routeDiscoveryQueryEl.value.trim();
+        if (query.length < 2) {
+          routeDiscoveryResultsEl.innerHTML = '<div class="discovery-status">请先描述想去的地区、可接受的强度或喜欢的景观。</div>';
+          routeDiscoveryQueryEl.focus();
+          return;
+        }
+        routeDiscoverySubmitBtn.disabled = true;
+        routeDiscoverySubmitBtn.textContent = '正在联网搜索…';
+        routeSearchEvents = [{phase:'start', title:'启动路线发现', status:'running', detail:'准备连接百炼与公开网页搜索。'}];
+        renderRouteSearchProcess();
+        try {
+          const response = await fetch('/api/v1/route-recommendations/stream', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'Accept':'text/event-stream'},
+            body: JSON.stringify({query, clarification_answers: routeDiscoveryClarifications})
+          });
+          if (!response.ok) {
+            let detail = response.statusText;
+            try { detail = (await response.json()).detail || detail; } catch (_) {}
+            throw new Error(detail);
+          }
+          if (!response.body) throw new Error('浏览器不支持流式显示搜索过程');
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder('utf-8');
+          let buffer = '';
+          let finalData = null;
+          while (true) {
+            const {value, done} = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, {stream:true});
+            const chunks = buffer.split('\n\n');
+            buffer = chunks.pop() || '';
+            for (const chunk of chunks) {
+              const payload = parseSsePayload(chunk);
+              if (!payload) continue;
+              if (payload.event === 'trace') {
+                routeSearchEvents.push(payload);
+                renderRouteSearchProcess();
+              } else if (payload.event === 'final') {
+                finalData = payload.response;
+              } else if (payload.event === 'error') {
+                throw new Error(payload.detail || '联网搜索失败');
+              }
+            }
+          }
+          if (!finalData) throw new Error('搜索结束但没有返回推荐结果');
+          routeDiscoveryData = finalData;
+          renderRouteDiscoveryResults(routeDiscoveryData);
+        } catch (error) {
+          routeDiscoveryResultsEl.innerHTML = `<div class="discovery-status"><strong>这次没有拿到可靠候选。</strong><br>${escapeHtml(error.message)}<br><small>系统不会用模拟路线填补失败结果，请检查百炼与高德配置后重试。</small></div>`;
+        } finally {
+          routeDiscoverySubmitBtn.disabled = false;
+          routeDiscoverySubmitBtn.textContent = '寻找有来源的路线 →';
+        }
+      }
+
+      function renderRouteSearchProcess() {
+        routeDiscoveryResultsEl.innerHTML = renderRouteSearchProcessHtml(routeSearchEvents, false);
+        const timeline = routeDiscoveryResultsEl.querySelector('.search-timeline');
+        if (timeline) timeline.scrollTop = timeline.scrollHeight;
+      }
+
+      function renderRouteSearchProcessHtml(events, complete) {
+        const visibleEvents = (events || []).slice(-10);
+        return `<section class="search-workbench" aria-label="联网搜索过程">
+          <div class="search-workbench-head">
+            <div class="search-live-badge${complete ? ' done' : ''}">${complete ? 'Search complete' : 'Live search'}</div>
+            <strong>${complete ? '搜索与核验已完成' : '正在寻找真实路线名称'}</strong>
+            <p>这里展示的是公开的工具步骤与结果摘要，不包含模型隐藏推理。</p>
+          </div>
+          <div class="search-timeline">${visibleEvents.map(renderRouteSearchEvent).join('')}</div>
+        </section>`;
+      }
+
+      function renderRouteSearchEvent(event) {
+        const queries = (event.queries || []).length
+          ? `<div class="search-query-list">${event.queries.slice(0,4).map(item => `<span class="search-query-pill">⌕ ${escapeHtml(item)}</span>`).join('')}</div>` : '';
+        const names = (event.route_names || []).length
+          ? `<div class="search-name-list">${event.route_names.slice(0,8).map(item => `<span class="search-name-pill">${escapeHtml(item)}</span>`).join('')}</div>` : '';
+        return `<div class="search-event ${escapeHtml(event.status || 'completed')}">
+          <span class="search-event-mark"></span>
+          <div><div class="search-event-title">${escapeHtml(event.title || '搜索事件')}</div><div class="search-event-detail">${escapeHtml(event.detail || '')}</div>${queries}${names}</div>
+        </div>`;
+      }
+
+      function renderRouteDiscoveryResults(data) {
+        const chips = intentEntries(data.intent).map(item => `
+          <span class="intent-chip" title="${item.state === 'explicit' ? '来自你的描述' : '系统状态：' + item.state}">
+            ${escapeHtml(item.label)} · ${escapeHtml(item.value)}
+            <button type="button" data-remove-intent="${escapeHtml(item.key)}" aria-label="删除${escapeHtml(item.label)}条件">×</button>
+          </span>`).join('');
+        const question = data.clarifying_question ? `
+          <div class="panel clarify-card">
+            <div><strong>再补充一个条件，结果会更准</strong>${escapeHtml(data.clarifying_question.text)}</div>
+            <div class="clarify-options">${(data.clarifying_question.options || []).map(option => `<button type="button" data-clarify-id="${escapeHtml(data.clarifying_question.id)}" data-clarify-answer="${escapeHtml(option)}">${escapeHtml(option)}</button>`).join('')}</div>
+          </div>` : '';
+        const candidates = (data.candidates || []).map((item, index) => renderRouteCandidate(item, index)).join('');
+        const candidateSection = candidates
+          ? `<div class="route-candidate-grid">${candidates}</div>`
+          : '<div class="discovery-status">没有候选达到“公开来源 + 地点核验或双来源”的展示门槛。可以回答上方问题或把地区描述得更具体。</div>';
+        const warnings = (data.warnings || []).length
+          ? `<div class="discovery-warnings">${data.warnings.map(w => `<div class="discovery-warning">△ ${escapeHtml(w)}</div>`).join('')}</div>` : '';
+        routeDiscoveryResultsEl.innerHTML = `
+          ${renderRouteSearchProcessHtml(routeSearchEvents, true)}
+          ${chips ? `<div class="intent-strip"><span class="intent-label">已识别条件</span>${chips}</div>` : ''}
+          ${question}
+          ${candidateSection}
+          ${warnings}`;
+        bindRouteDiscoveryResultEvents();
+      }
+
+      function renderRouteCandidate(item, index) {
+        const sources = (item.evidence || []).slice(0,3).map(source => `<a class="candidate-source-link" href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">↗ ${escapeHtml(source.title || '查看外部来源')}</a>`).join('');
+        return `<article class="route-candidate">
+          <div class="candidate-index">Candidate 0${index + 1} · ${(item.evidence || []).length} 个来源</div>
+          <div class="candidate-head">
+            <div><h3>${escapeHtml(item.name)}</h3><div class="candidate-region">${escapeHtml(item.region || '地区待核验')}</div></div>
+          </div>
+          <div class="candidate-source-list">${sources || '<span class="candidate-summary">暂无可打开的外部来源</span>'}</div>
+          <div class="candidate-actions">
+            <button class="candidate-detail" type="button" data-route-detail="${escapeHtml(item.id)}">查看全部来源</button>
+            <button class="candidate-select" type="button" data-route-select="${escapeHtml(item.id)}">已找到 KML，去上传</button>
+          </div>
+        </article>`;
+      }
+
+      function bindRouteDiscoveryResultEvents() {
+        routeDiscoveryResultsEl.querySelectorAll('[data-remove-intent]').forEach(button => {
+          button.addEventListener('click', () => {
+            routeDiscoveryClarifications[button.dataset.removeIntent] = '未指定，请忽略原输入中的该条件';
+            requestRouteRecommendations();
+          });
+        });
+        routeDiscoveryResultsEl.querySelectorAll('[data-clarify-id]').forEach(button => {
+          button.addEventListener('click', () => {
+            routeDiscoveryClarifications[button.dataset.clarifyId] = button.dataset.clarifyAnswer;
+            requestRouteRecommendations();
+          });
+        });
+        routeDiscoveryResultsEl.querySelectorAll('[data-route-detail]').forEach(button => {
+          button.addEventListener('click', () => openRouteDetail(button.dataset.routeDetail));
+        });
+        routeDiscoveryResultsEl.querySelectorAll('[data-route-select]').forEach(button => {
+          button.addEventListener('click', () => selectDiscoveredRoute(button.dataset.routeSelect));
+        });
+      }
+
+      function openRouteDetail(id) {
+        const item = routeDiscoveryData?.candidates?.find(candidate => candidate.id === id);
+        if (!item) return;
+        routeDetailDrawerEl.innerHTML = `
+          <button class="drawer-close" type="button" aria-label="关闭详情">×</button>
+          <div class="discovery-kicker">Evidence view</div>
+          <h2>${escapeHtml(item.name)}</h2>
+          <div class="candidate-region">${escapeHtml(item.region)}</div>
+          <p class="candidate-summary" style="margin-top:16px">Trailer 只推荐路线名称。请在下方外部网站核对路线、下载 KML，再回到本站分析。</p>
+          <section class="drawer-section"><h3>公开来源</h3>${(item.evidence || []).map(source => `<a class="drawer-source" href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">↗ ${escapeHtml(source.title)}<small>${escapeHtml(source.summary || source.url)}</small></a>`).join('')}</section>
+          <section class="drawer-section"><h3>下一步</h3><ul><li>在外部网站选择具体起终点与轨迹版本。</li><li>下载对应 KML 文件。</li><li>回到 Trailer 上传并进行路线量化分析。</li></ul></section>`;
+        routeDetailBackdropEl.classList.add('show');
+        routeDetailDrawerEl.querySelector('.drawer-close').addEventListener('click', closeRouteDetail);
+        routeDetailDrawerEl.querySelector('.drawer-close').focus();
+      }
+
+      function closeRouteDetail() { routeDetailBackdropEl.classList.remove('show'); }
+
+      function selectDiscoveredRoute(id) {
+        const item = routeDiscoveryData?.candidates?.find(candidate => candidate.id === id);
+        if (!item) return;
+        selectedRouteDiscoveryCandidate = item;
+        renderSelectedRouteNotice();
+        closeRouteDetail();
+        activateModule('parse');
+        uploadZone.scrollIntoView({behavior:'smooth', block:'center'});
+      }
+
+      function renderSelectedRouteNotice() {
+        if (!selectedRouteDiscoveryCandidate) {
+          selectedRouteNoticeEl.classList.remove('show');
+          selectedRouteNoticeEl.innerHTML = '';
+          return;
+        }
+        selectedRouteNoticeEl.classList.add('show');
+        selectedRouteNoticeEl.innerHTML = `<div><strong>准备分析：${escapeHtml(selectedRouteDiscoveryCandidate.name)}</strong><span>${escapeHtml(selectedRouteDiscoveryCandidate.region)} · 请上传你从外部网站获取的对应 KML。</span></div><button class="candidate-detail" type="button" id="clear-selected-route">取消选择</button>`;
+        document.getElementById('clear-selected-route').addEventListener('click', () => {
+          selectedRouteDiscoveryCandidate = null;
+          renderSelectedRouteNotice();
+        });
+      }
+
       // ---- Boot ----
       checkHealth();
       loadMapConfig();
+      if (routeDiscoveryQueryEl) {
+        routeDiscoveryQueryEl.addEventListener('input', () => {
+          routeDiscoveryCountEl.textContent = `${routeDiscoveryQueryEl.value.length} / 1000`;
+        });
+        routeDiscoveryQueryEl.addEventListener('keydown', event => {
+          if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') requestRouteRecommendations();
+        });
+      }
+      if (routeDiscoverySubmitBtn) routeDiscoverySubmitBtn.addEventListener('click', requestRouteRecommendations);
+      document.querySelectorAll('.discovery-example').forEach(button => {
+        button.addEventListener('click', () => {
+          routeDiscoveryQueryEl.value = button.textContent.replaceAll(' · ', '，');
+          routeDiscoveryCountEl.textContent = `${routeDiscoveryQueryEl.value.length} / 1000`;
+          routeDiscoveryQueryEl.focus();
+        });
+      });
+      if (routeDetailBackdropEl) {
+        routeDetailBackdropEl.addEventListener('click', event => {
+          if (event.target === routeDetailBackdropEl) closeRouteDetail();
+        });
+      }
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && routeDetailBackdropEl?.classList.contains('show')) closeRouteDetail();
+      });
       setHistoryCollapsed(localStorage.getItem(HISTORY_COLLAPSED_KEY) === 'true');
       renderGuideHistory();
       if (historyToggleBtn) {
@@ -2891,6 +3408,8 @@
         guidePoiInfoWindow = null;
         guidePoiMarkers = {};
         guidePoiActiveFilters = new Set(["lodging", "food"]);
+        selectedRouteDiscoveryCandidate = null;
+        renderSelectedRouteNotice();
         parseResults.innerHTML = EMPTY_PARSE_HTML;
         document.querySelectorAll(".module-tab").forEach(tab => {
           tab.classList.toggle("active", tab.dataset.module === "parse");
@@ -2908,7 +3427,7 @@
 
       function appendGuideForm(data) {
         const firstRoute = data.routes[0];
-        const destName = firstRoute ? firstRoute.name : '';
+        const destName = selectedRouteDiscoveryCandidate?.name || (firstRoute ? firstRoute.name : '');
         const today = new Date();
         const startDate = formatDateISO(today);
         const endDate = new Date(today);
@@ -2968,6 +3487,19 @@
           </div>
         `;
         parseResults.insertAdjacentHTML('beforeend', formHtml);
+
+        if (selectedRouteDiscoveryCandidate) {
+          const selected = selectedRouteDiscoveryCandidate;
+          const intent = routeDiscoveryData?.intent || {};
+          const routeTextInput = document.getElementById('guide-route-text');
+          const linksInput = document.getElementById('guide-reference-links');
+          const startCityInput = document.getElementById('guide-start-city');
+          const fitnessInput = document.getElementById('guide-fitness');
+          routeTextInput.value = `推荐候选：${selected.name}（${selected.region}）。请以本次上传轨迹为准，候选页中的路线指标仅作待核验参考。`;
+          linksInput.value = (selected.evidence || []).map(item => item.url).join('\n');
+          if (intent.origin_city) startCityInput.value = intent.origin_city;
+          if (intent.fitness_level) fitnessInput.value = intent.fitness_level;
+        }
 
         document.getElementById('btn-generate-guide').addEventListener('click', submitGuideRequest);
         document.getElementById('btn-test-llm').addEventListener('click', testLLMConnection);

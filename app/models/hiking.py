@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -24,6 +24,103 @@ class Place(BaseModel):
     coordinate: Coordinate
     source: str = "static"
     confidence: float = Field(default=0.5, ge=0, le=1)
+
+
+class IntentFieldState(StrEnum):
+    EXPLICIT = "explicit"
+    DEFAULT = "default"
+    UNKNOWN = "unknown"
+
+
+class RouteRecommendationRequest(BaseModel):
+    query: str = Field(min_length=2, max_length=1000)
+    clarification_answers: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("query")
+    @classmethod
+    def normalize_query(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 2:
+            raise ValueError("query is too short")
+        return value
+
+    @field_validator("clarification_answers")
+    @classmethod
+    def normalize_clarification_answers(cls, value: dict[str, str]) -> dict[str, str]:
+        return {
+            str(key).strip(): str(answer).strip()
+            for key, answer in value.items()
+            if str(key).strip() and str(answer).strip()
+        }
+
+
+class RouteRecommendationIntent(BaseModel):
+    destination_region: str | None = None
+    origin_city: str | None = None
+    travel_date_or_season: str | None = None
+    trip_days: int | None = Field(default=None, ge=1, le=30)
+    fitness_level: Literal["beginner", "intermediate", "advanced"] | None = None
+    min_distance_km: float | None = Field(default=None, ge=0, le=500)
+    max_distance_km: float | None = Field(default=None, ge=0, le=500)
+    max_duration_hours: float | None = Field(default=None, gt=0, le=72)
+    max_ascent_m: float | None = Field(default=None, ge=0, le=20000)
+    scenery_preferences: list[str] = Field(default_factory=list)
+    transport_preference: str | None = None
+    camping_preference: bool | None = None
+    exclusions: list[str] = Field(default_factory=list)
+    field_states: dict[str, IntentFieldState] = Field(default_factory=dict)
+
+
+class RecommendationEvidence(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    url: str
+    summary: str | None = Field(default=None, max_length=500)
+    source_type: str = "web"
+    published_at: str | None = None
+
+    @field_validator("url")
+    @classmethod
+    def require_public_http_url(cls, value: str) -> str:
+        value = value.strip()
+        if not value.startswith(("https://", "http://")):
+            raise ValueError("evidence URL must use http(s)")
+        return value
+
+
+class RouteRecommendationCandidate(BaseModel):
+    id: str
+    name: str
+    region: str
+    coordinate: Coordinate | None = None
+    coordinate_system: str | None = None
+    match_score: int = Field(ge=0, le=100)
+    confidence: float = Field(ge=0, le=1)
+    summary: str | None = None
+    difficulty: str | None = None
+    distance_km: float | None = None
+    duration_hours: float | None = None
+    ascent_m: float | None = None
+    scenery: list[str] = Field(default_factory=list)
+    transport_notes: list[str] = Field(default_factory=list)
+    match_reasons: list[str] = Field(default_factory=list)
+    mismatches: list[str] = Field(default_factory=list)
+    unknown_fields: list[str] = Field(default_factory=list)
+    evidence: list[RecommendationEvidence] = Field(default_factory=list)
+    verification_items: list[str] = Field(default_factory=list)
+
+
+class RouteRecommendationQuestion(BaseModel):
+    id: str
+    text: str
+    options: list[str] = Field(default_factory=list)
+
+
+class RouteRecommendationResponse(BaseModel):
+    intent: RouteRecommendationIntent
+    candidates: list[RouteRecommendationCandidate]
+    clarifying_question: RouteRecommendationQuestion | None = None
+    warnings: list[str] = Field(default_factory=list)
+    data_sources: list[str] = Field(default_factory=list)
 
 
 class HikingGuideRequest(BaseModel):
