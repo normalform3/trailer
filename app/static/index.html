@@ -2224,6 +2224,9 @@
       }
       .route-candidate:hover { transform: translateY(-3px); border-color: var(--moss); box-shadow: 0 18px 42px rgba(50,45,30,0.13); }
       .candidate-index { color: var(--clay); font-family: Georgia, serif; font-size: 12px; font-style: italic; }
+      .candidate-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+      .candidate-badge { display:inline-flex; align-items:center; padding:4px 7px; border:1px solid rgba(80,104,62,.22); border-radius:999px; background:rgba(223,232,202,.34); color:var(--moss-dark); font-size:10px; font-weight:900; }
+      .candidate-badge.live { border-color:rgba(166,83,43,.22); background:rgba(244,198,90,.15); color:var(--clay); }
       .candidate-head { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
       .candidate-head h3 { margin: 0; color: var(--moss-dark); font-family: Georgia, serif; font-size: 21px; line-height: 1.2; }
       .candidate-region { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.4; }
@@ -2425,7 +2428,7 @@
         <div class="panel discovery-board">
           <div class="discovery-kicker">Route discovery · 全国路线发现</div>
           <h2>先说你想走怎样的山路。</h2>
-          <p class="discovery-lead">系统只推荐能够找到公开来源的路线名称。选中后，请上传对应轨迹，再进行距离、海拔、天气和风险分析。</p>
+          <p class="discovery-lead">系统先检索重点省份路线库，不足时再联网补充；只推荐能够找到公开来源的路线名称。选中后，请上传对应轨迹，再进行距离、海拔、天气和风险分析。</p>
           <div class="discovery-compose">
             <textarea id="route-discovery-query" maxlength="1000" placeholder="例如：杭州周边，周末一天，新手，想看溪流和竹林，不想爬升太大，公共交通可达。"></textarea>
             <div class="discovery-compose-foot">
@@ -2434,6 +2437,7 @@
             </div>
           </div>
           <div class="discovery-examples" aria-label="示例需求">
+            <button class="discovery-example" id="route-featured" type="button">全国精选 · 路线库</button>
             <button class="discovery-example" type="button">上海周边 · 新手 · 公交可达</button>
             <button class="discovery-example" type="button">成都出发 · 两天 · 高山风景</button>
             <button class="discovery-example" type="button">广州周边 · 溪流 · 6小时内</button>
@@ -2467,6 +2471,7 @@
       const routeDiscoverySubmitBtn = document.querySelector("#route-discovery-submit");
       const routeDiscoveryCountEl = document.querySelector("#route-discovery-count");
       const routeDiscoveryResultsEl = document.querySelector("#route-discovery-results");
+      const routeFeaturedBtn = document.querySelector("#route-featured");
       const routeDetailBackdropEl = document.querySelector("#route-detail-backdrop");
       const routeDetailDrawerEl = document.querySelector("#route-detail-drawer");
       const selectedRouteNoticeEl = document.querySelector("#selected-route-notice");
@@ -3153,8 +3158,8 @@
           return;
         }
         routeDiscoverySubmitBtn.disabled = true;
-        routeDiscoverySubmitBtn.textContent = '正在联网搜索…';
-        routeSearchEvents = [{phase:'start', title:'启动路线发现', status:'running', detail:'准备连接百炼与公开网页搜索。'}];
+        routeDiscoverySubmitBtn.textContent = '正在检索…';
+        routeSearchEvents = [{phase:'start', title:'启动路线发现', status:'running', detail:'准备检索路线知识库，必要时联网补充。'}];
         renderRouteSearchProcess();
         try {
           const response = await fetch('/api/v1/route-recommendations/stream', {
@@ -3195,7 +3200,7 @@
           routeDiscoveryData = finalData;
           renderRouteDiscoveryResults(routeDiscoveryData);
         } catch (error) {
-          routeDiscoveryResultsEl.innerHTML = `<div class="discovery-status"><strong>这次没有拿到可靠候选。</strong><br>${escapeHtml(error.message)}<br><small>系统不会用模拟路线填补失败结果，请检查百炼与高德配置后重试。</small></div>`;
+          routeDiscoveryResultsEl.innerHTML = `<div class="discovery-status"><strong>这次没有拿到可靠候选。</strong><br>${escapeHtml(error.message)}<br><small>系统不会用模拟路线填补失败结果，请检查模型配置或稍后重试。</small></div>`;
         } finally {
           routeDiscoverySubmitBtn.disabled = false;
           routeDiscoverySubmitBtn.textContent = '寻找有来源的路线 →';
@@ -3212,8 +3217,8 @@
         const visibleEvents = (events || []).slice(-10);
         return `<section class="search-workbench" aria-label="联网搜索过程">
           <div class="search-workbench-head">
-            <div class="search-live-badge${complete ? ' done' : ''}">${complete ? 'Search complete' : 'Live search'}</div>
-            <strong>${complete ? '搜索与核验已完成' : '正在寻找真实路线名称'}</strong>
+            <div class="search-live-badge${complete ? ' done' : ''}">${complete ? 'Retrieval complete' : 'Retrieving'}</div>
+            <strong>${complete ? '检索与核验已完成' : '正在寻找真实路线名称'}</strong>
             <p>这里展示的是公开的工具步骤与结果摘要，不包含模型隐藏推理。</p>
           </div>
           <div class="search-timeline">${visibleEvents.map(renderRouteSearchEvent).join('')}</div>
@@ -3259,10 +3264,17 @@
 
       function renderRouteCandidate(item, index) {
         const sources = (item.evidence || []).slice(0,3).map(source => `<a class="candidate-source-link" href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">↗ ${escapeHtml(source.title || '查看外部来源')}</a>`).join('');
+        const retrievalLabel = item.retrieval_source === 'knowledge_base' ? '路线知识库' : '联网补充';
+        const officialLabel = formatOfficialStatus(item.official_status);
+        const badges = [
+          `<span class="candidate-badge${item.retrieval_source === 'knowledge_base' ? '' : ' live'}">${escapeHtml(retrievalLabel)}</span>`,
+          item.popularity_label ? `<span class="candidate-badge">${escapeHtml(item.popularity_label)}</span>` : '',
+          officialLabel ? `<span class="candidate-badge">${escapeHtml(officialLabel)}</span>` : ''
+        ].filter(Boolean).join('');
         return `<article class="route-candidate">
           <div class="candidate-index">Candidate 0${index + 1} · ${(item.evidence || []).length} 个来源</div>
           <div class="candidate-head">
-            <div><h3>${escapeHtml(item.name)}</h3><div class="candidate-region">${escapeHtml(item.region || '地区待核验')}</div></div>
+            <div><h3>${escapeHtml(item.name)}</h3><div class="candidate-region">${escapeHtml(item.region || '地区待核验')}</div><div class="candidate-meta">${badges}</div></div>
           </div>
           <div class="candidate-source-list">${sources || '<span class="candidate-summary">暂无可打开的外部来源</span>'}</div>
           <div class="candidate-actions">
@@ -3270,6 +3282,10 @@
             <button class="candidate-select" type="button" data-route-select="${escapeHtml(item.id)}">已找到 KML，去上传</button>
           </div>
         </article>`;
+      }
+
+      function formatOfficialStatus(value) {
+        return ({selected:'官方精品线路', demonstration:'国家示范步道', national_trail:'国家登山步道', national_forest_trail:'国家森林步道'})[value] || '';
       }
 
       function bindRouteDiscoveryResultEvents() {
@@ -3301,8 +3317,14 @@
           <div class="discovery-kicker">Evidence view</div>
           <h2>${escapeHtml(item.name)}</h2>
           <div class="candidate-region">${escapeHtml(item.region)}</div>
+          <div class="candidate-meta">
+            <span class="candidate-badge${item.retrieval_source === 'knowledge_base' ? '' : ' live'}">${item.retrieval_source === 'knowledge_base' ? '路线知识库' : '联网补充'}</span>
+            ${item.popularity_label ? `<span class="candidate-badge">${escapeHtml(item.popularity_label)}</span>` : ''}
+            ${formatOfficialStatus(item.official_status) ? `<span class="candidate-badge">${escapeHtml(formatOfficialStatus(item.official_status))}</span>` : ''}
+          </div>
           <p class="candidate-summary" style="margin-top:16px">Trailer 只推荐路线名称。请在下方外部网站核对路线、下载 KML，再回到本站分析。</p>
           <section class="drawer-section"><h3>公开来源</h3>${(item.evidence || []).map(source => `<a class="drawer-source" href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">↗ ${escapeHtml(source.title)}<small>${escapeHtml(source.summary || source.url)}</small></a>`).join('')}</section>
+          <section class="drawer-section"><h3>资料状态</h3><ul><li>${item.last_verified_at ? `最近核验：${escapeHtml(item.last_verified_at)}` : '尚未记录人工核验日期，请以来源页面和属地公告为准。'}</li><li>“精选”是编辑排序信号，不代表用户评分。</li></ul></section>
           <section class="drawer-section"><h3>下一步</h3><ul><li>在外部网站选择具体起终点与轨迹版本。</li><li>下载对应 KML 文件。</li><li>回到 Trailer 上传并进行路线量化分析。</li></ul></section>`;
         routeDetailBackdropEl.classList.add('show');
         routeDetailDrawerEl.querySelector('.drawer-close').addEventListener('click', closeRouteDetail);
@@ -3335,6 +3357,33 @@
         });
       }
 
+      async function loadFeaturedRoutes() {
+        routeFeaturedBtn.disabled = true;
+        routeFeaturedBtn.textContent = '正在读取路线库…';
+        routeSearchEvents = [{phase:'knowledge', title:'正在读取全国精选', status:'running', detail:'从同一份省份路线库生成全国精选视图。'}];
+        renderRouteSearchProcess();
+        try {
+          const response = await fetch('/api/v1/route-recommendations/featured?limit=3');
+          if (!response.ok) {
+            let detail = response.statusText;
+            try { detail = (await response.json()).detail || detail; } catch (_) {}
+            throw new Error(detail);
+          }
+          routeDiscoveryData = await response.json();
+          routeSearchEvents = [{
+            phase:'knowledge', title:'全国精选已生成', status:'completed',
+            detail:`从路线知识库选出 ${(routeDiscoveryData.candidates || []).length} 条代表路线。`,
+            route_names:(routeDiscoveryData.candidates || []).map(item => item.name)
+          }];
+          renderRouteDiscoveryResults(routeDiscoveryData);
+        } catch (error) {
+          routeDiscoveryResultsEl.innerHTML = `<div class="discovery-status"><strong>暂时无法读取全国精选。</strong><br>${escapeHtml(error.message)}</div>`;
+        } finally {
+          routeFeaturedBtn.disabled = false;
+          routeFeaturedBtn.textContent = '全国精选 · 路线库';
+        }
+      }
+
       // ---- Boot ----
       checkHealth();
       loadMapConfig();
@@ -3347,7 +3396,8 @@
         });
       }
       if (routeDiscoverySubmitBtn) routeDiscoverySubmitBtn.addEventListener('click', requestRouteRecommendations);
-      document.querySelectorAll('.discovery-example').forEach(button => {
+      if (routeFeaturedBtn) routeFeaturedBtn.addEventListener('click', loadFeaturedRoutes);
+      document.querySelectorAll('.discovery-example:not(#route-featured)').forEach(button => {
         button.addEventListener('click', () => {
           routeDiscoveryQueryEl.value = button.textContent.replaceAll(' · ', '，');
           routeDiscoveryCountEl.textContent = `${routeDiscoveryQueryEl.value.length} / 1000`;

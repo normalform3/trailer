@@ -98,6 +98,18 @@ def recommend_routes(request: RouteRecommendationRequest) -> RouteRecommendation
         raise HTTPException(status_code=502, detail=_public_route_recommendation_error(exc)) from exc
 
 
+@app.get("/api/v1/route-recommendations/featured", response_model=RouteRecommendationResponse)
+def featured_routes(
+    region: str | None = Query(default=None, max_length=40),
+    limit: int = Query(default=3, ge=1, le=12),
+) -> RouteRecommendationResponse:
+    """Return an editorial nationwide or regional view over the same route knowledge base."""
+    try:
+        return _route_recommendation_service.featured(region=region, limit=limit)
+    except RouteRecommendationUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
 @app.post("/api/v1/route-recommendations/stream")
 def stream_route_recommendations(request: RouteRecommendationRequest) -> StreamingResponse:
     """Stream route discovery phases while the LLM and map providers run."""

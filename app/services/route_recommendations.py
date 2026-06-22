@@ -22,6 +22,11 @@ from app.providers.route_discovery import (
     RoutePlaceVerifier,
     VerifiedRoutePlace,
 )
+from app.services.route_knowledge import (
+    NullRouteKnowledgeRepository,
+    RouteKnowledgeRepository,
+    SQLiteRouteKnowledgeRepository,
+)
 
 
 class RouteRecommendationUnavailable(RuntimeError):
@@ -34,11 +39,16 @@ class RouteRecommendationService:
         intent_provider: RouteIntentProvider | None = None,
         search_provider: RouteDiscoverySearchProvider | None = None,
         place_verifier: RoutePlaceVerifier | None = None,
+        knowledge_repository: RouteKnowledgeRepository | None = None,
     ) -> None:
         shared_provider = BailianRouteDiscoveryProvider()
         self.intent_provider = intent_provider or shared_provider
         self.search_provider = search_provider or shared_provider
         self.place_verifier = place_verifier or AmapRoutePlaceVerifier()
+        custom_dependencies = any(item is not None for item in (intent_provider, search_provider, place_verifier))
+        self.knowledge_repository = knowledge_repository or (
+            NullRouteKnowledgeRepository() if custom_dependencies else SQLiteRouteKnowledgeRepository()
+        )
 
     def recommend(
         self,
@@ -56,34 +66,68 @@ class RouteRecommendationService:
         intent = _normalize_intent_states(intent)
         explicit_count = sum(1 for state in intent.field_states.values() if state == IntentFieldState.EXPLICIT)
         _emit(on_event, "intent", "需求解析完成", "completed", f"识别到 {explicit_count} 个明确条件。")
-        queries = _build_search_queries(intent)
-        _emit(
-            on_event,
-            "query",
-            "生成联网搜索查询",
-            "completed",
-            f"准备执行 {len(queries)} 组搜索关键词。",
-            queries=queries,
-        )
-        _emit(on_event, "search", "百炼正在搜索公开网页", "running", "只收集真实路线名称和可追溯来源。")
-        raw_candidates = self.search_provider.search(intent, queries)
-        actual_queries = list(getattr(self.search_provider, "last_search_actions", []) or [])
-        search_sources = list(getattr(self.search_provider, "last_search_sources", []) or [])
-        _emit(
-            on_event,
-            "search",
-            "联网搜索完成",
-            "completed",
-            f"发现 {len(raw_candidates)} 个原始路线名称、{len(search_sources)} 个引用来源。",
-            queries=actual_queries or queries,
-            route_names=[candidate.name for candidate in raw_candidates],
-            source_count=len(search_sources),
-        )
+        warnings: list[str] = []
+        knowledge_candidates: list[RawRouteCandidate] = []
+        knowledge_attempted = not isinstance(self.knowledge_repository, NullRouteKnowledgeRepository)
+        if knowledge_attempted:
+            _emit(on_event, "knowledge", "正在检索路线知识库", "running", "按地区、偏好与硬条件查找已收录路线。")
+            try:
+                knowledge_candidates = self.knowledge_repository.search(intent, limit=8)
+                _emit(
+                    on_event,
+                    "knowledge",
+                    "路线知识库检索完成",
+                    "completed",
+                    f"命中 {len(knowledge_candidates)} 条可用路线。",
+                    route_names=[candidate.name for candidate in knowledge_candidates],
+                )
+            except Exception as exc:  # noqa: BLE001 - live web remains a safe fallback.
+                warnings.append(f"本地路线知识库暂不可用，已切换联网检索：{exc}")
+                _emit(on_event, "knowledge", "路线知识库暂不可用", "warning", "已切换到联网检索。")
+
+        web_candidates: list[RawRouteCandidate] = []
+        search_sources: list[object] = []
+        search_attempted = False
+        if len(knowledge_candidates) < 3:
+            search_attempted = True
+            queries = _build_search_queries(intent)
+            _emit(
+                on_event,
+                "query",
+                "生成联网补充查询",
+                "completed",
+                f"本地候选不足，准备执行 {len(queries)} 组搜索关键词。",
+                queries=queries,
+            )
+            _emit(on_event, "search", "百炼正在补充公开网页", "running", "只收集真实路线名称和可追溯来源。")
+            try:
+                web_candidates = self.search_provider.search(intent, queries)
+            except Exception as exc:
+                if not knowledge_candidates:
+                    raise
+                warnings.append("联网补充暂不可用，当前结果仅来自本地路线知识库。")
+                _emit(on_event, "search", "联网补充暂不可用", "warning", "保留知识库候选继续生成结果。")
+            else:
+                actual_queries = list(getattr(self.search_provider, "last_search_actions", []) or [])
+                search_sources = list(getattr(self.search_provider, "last_search_sources", []) or [])
+                _emit(
+                    on_event,
+                    "search",
+                    "联网补充完成",
+                    "completed",
+                    f"补充 {len(web_candidates)} 个原始路线名称、{len(search_sources)} 个引用来源。",
+                    queries=actual_queries or queries,
+                    route_names=[candidate.name for candidate in web_candidates],
+                    source_count=len(search_sources),
+                )
+        else:
+            _emit(on_event, "search", "无需联网补充", "completed", "知识库已有足够候选，本次未调用网页搜索。")
+
+        raw_candidates = [*knowledge_candidates, *web_candidates]
         merged = _merge_candidates(raw_candidates)
 
-        warnings: list[str] = []
         if not self.place_verifier.enabled:
-            warnings.append("未配置高德 Web 服务 Key，候选必须由至少两个独立网页来源交叉验证。")
+            warnings.append("未配置高德 Web 服务 Key；联网候选必须由至少两个独立网页来源交叉验证。")
 
         ranked: list[RouteRecommendationCandidate] = []
         for index, raw in enumerate(merged, start=1):
@@ -106,13 +150,15 @@ class RouteRecommendationService:
             if not raw.evidence:
                 _emit(on_event, "verify", f"跳过：{raw.name}", "warning", "没有可验证的网页引用。", route_name=raw.name)
                 continue
-            if place is None and len(independent_domains) < 2:
+            if raw.retrieval_source != "knowledge_base" and place is None and len(independent_domains) < 2:
                 _emit(on_event, "verify", f"跳过：{raw.name}", "warning", "地点未确认且不足两个独立来源。", route_name=raw.name)
                 continue
             if _hard_conflict(intent, raw):
                 _emit(on_event, "verify", f"过滤：{raw.name}", "warning", "与用户明确条件冲突。", route_name=raw.name)
                 continue
             ranked.append(_score_candidate(intent, raw, place, len(independent_domains)))
+            if raw.risk_level == "high":
+                warnings.append(f"{raw.name} 属于高风险路线，出发前必须核对属地公告、开放状态与准入要求。")
             _emit(on_event, "verify", f"通过：{raw.name}", "completed", "名称与来源达到展示门槛。", route_name=raw.name)
 
         _emit(on_event, "rank", "正在整理推荐名称", "running", "按地区、偏好和证据质量排序。")
@@ -123,8 +169,12 @@ class RouteRecommendationService:
         if not candidates:
             warnings.append("没有找到同时满足来源与地点核验要求的路线，请补充更具体的地区或放宽条件。")
 
-        sources = ["bailian-web-search"]
-        if self.place_verifier.enabled:
+        sources: list[str] = []
+        if knowledge_attempted and knowledge_candidates:
+            sources.append("route-knowledge-base")
+        if search_attempted:
+            sources.append("bailian-web-search")
+        if self.place_verifier.enabled and merged:
             sources.append("amap-place-search")
         response = RouteRecommendationResponse(
             intent=intent,
@@ -142,6 +192,38 @@ class RouteRecommendationService:
             route_names=[candidate.name for candidate in candidates],
         )
         return response
+
+    def featured(self, region: str | None = None, limit: int = 3) -> RouteRecommendationResponse:
+        intent = _normalize_intent_states(
+            RouteRecommendationIntent(
+                destination_region=region,
+                field_states={
+                    "destination_region": IntentFieldState.EXPLICIT if region else IntentFieldState.UNKNOWN,
+                },
+            )
+        )
+        try:
+            raw_candidates = self.knowledge_repository.search(intent, limit=max(3, min(limit, 12)))
+        except Exception as exc:  # noqa: BLE001 - exposed as a stable service-level failure.
+            raise RouteRecommendationUnavailable("路线知识库暂不可用，请稍后重试。") from exc
+        candidates = [
+            _score_candidate(intent, raw, None, len(_independent_domains(raw)))
+            for raw in raw_candidates
+            if raw.evidence and not _hard_conflict(intent, raw)
+        ][:limit]
+        warnings = [
+            f"{raw.name} 属于高风险路线，请先核对属地公告与准入要求。"
+            for raw in raw_candidates[:limit]
+            if raw.risk_level == "high"
+        ]
+        if not candidates:
+            warnings.append("当前路线知识库没有符合条件的精选路线。")
+        return RouteRecommendationResponse(
+            intent=intent,
+            candidates=candidates,
+            warnings=_dedupe_strings(warnings),
+            data_sources=["route-knowledge-base"],
+        )
 
 
 def _emit(
@@ -223,11 +305,19 @@ def _merge_candidates(candidates: list[RawRouteCandidate]) -> list[RawRouteCandi
             current.aliases = _dedupe_strings([*current.aliases, *candidate.aliases, candidate.name])
             current.evidence = _dedupe_evidence([*current.evidence, *candidate.evidence])
             current.scenery = _dedupe_strings([*current.scenery, *candidate.scenery])
+            current.seasons = _dedupe_strings([*current.seasons, *candidate.seasons])
             current.transport_notes = _dedupe_strings([*current.transport_notes, *candidate.transport_notes])
             current.verification_items = _dedupe_strings([*current.verification_items, *candidate.verification_items])
             for field in ("summary", "difficulty", "distance_km", "duration_hours", "ascent_m", "camping"):
                 if getattr(current, field) is None and getattr(candidate, field) is not None:
                     setattr(current, field, getattr(candidate, field))
+            if candidate.retrieval_source == "knowledge_base":
+                current.retrieval_source = candidate.retrieval_source
+                current.popularity_label = candidate.popularity_label
+                current.last_verified_at = candidate.last_verified_at
+                current.official_status = candidate.official_status
+                current.editorial_rank = candidate.editorial_rank
+                current.risk_level = candidate.risk_level
         for name in names:
             alias_index[name] = key
     return list(merged.values())
@@ -306,6 +396,14 @@ def _score_candidate(
     score += evidence_score
     reasons.append(f"由 {independent_domain_count} 个独立网页来源支持" + ("，并经高德地点核验" if place else ""))
 
+    if raw.retrieval_source == "knowledge_base":
+        score += min(6, raw.editorial_rank * 2)
+        if raw.popularity_label:
+            reasons.append(f"路线库标记为「{raw.popularity_label}」")
+        if raw.official_status and raw.official_status != "unverified":
+            score += 4
+            reasons.append("具有可追溯的官方收录信息")
+
     for field, label in (
         (raw.distance_km, "距离"),
         (raw.duration_hours, "耗时"),
@@ -324,7 +422,13 @@ def _score_candidate(
     if place is None:
         verification_items.insert(0, "高德未确认到同名地点，请核对路线所在地区和起终点。")
 
-    confidence = min(0.92, 0.35 + min(independent_domain_count, 3) * 0.14 + (0.2 if place else 0))
+    confidence = min(
+        0.92,
+        0.35
+        + min(independent_domain_count, 3) * 0.14
+        + (0.2 if place else 0)
+        + (0.15 if raw.retrieval_source == "knowledge_base" else 0),
+    )
     region = place.region if place is not None else raw.region
     return RouteRecommendationCandidate(
         id=_candidate_id(raw.name, region),
@@ -332,7 +436,7 @@ def _score_candidate(
         region=region,
         coordinate=place.coordinate if place else None,
         coordinate_system=place.coordinate_system if place else None,
-        match_score=round(score),
+        match_score=min(100, round(score)),
         confidence=round(confidence, 2),
         summary=raw.summary,
         difficulty=raw.difficulty,
@@ -340,12 +444,17 @@ def _score_candidate(
         duration_hours=raw.duration_hours,
         ascent_m=raw.ascent_m,
         scenery=raw.scenery,
+        seasons=raw.seasons,
         transport_notes=raw.transport_notes,
         match_reasons=_dedupe_strings(reasons),
         mismatches=_dedupe_strings(mismatches),
         unknown_fields=_dedupe_strings(unknown),
         evidence=raw.evidence,
         verification_items=verification_items,
+        retrieval_source="knowledge_base" if raw.retrieval_source == "knowledge_base" else "live_web",
+        popularity_label=raw.popularity_label,
+        last_verified_at=raw.last_verified_at,
+        official_status=raw.official_status,
     )
 
 

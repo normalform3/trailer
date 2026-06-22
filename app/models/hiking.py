@@ -101,12 +101,17 @@ class RouteRecommendationCandidate(BaseModel):
     duration_hours: float | None = None
     ascent_m: float | None = None
     scenery: list[str] = Field(default_factory=list)
+    seasons: list[str] = Field(default_factory=list)
     transport_notes: list[str] = Field(default_factory=list)
     match_reasons: list[str] = Field(default_factory=list)
     mismatches: list[str] = Field(default_factory=list)
     unknown_fields: list[str] = Field(default_factory=list)
     evidence: list[RecommendationEvidence] = Field(default_factory=list)
     verification_items: list[str] = Field(default_factory=list)
+    retrieval_source: Literal["knowledge_base", "live_web"] = "live_web"
+    popularity_label: str | None = None
+    last_verified_at: str | None = None
+    official_status: str | None = None
 
 
 class RouteRecommendationQuestion(BaseModel):

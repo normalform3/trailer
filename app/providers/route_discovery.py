@@ -26,10 +26,17 @@ class RawRouteCandidate(BaseModel):
     duration_hours: float | None = Field(default=None, gt=0, le=72)
     ascent_m: float | None = Field(default=None, ge=0, le=20000)
     scenery: list[str] = Field(default_factory=list)
+    seasons: list[str] = Field(default_factory=list)
     transport_notes: list[str] = Field(default_factory=list)
     camping: bool | None = None
     evidence: list[RecommendationEvidence] = Field(default_factory=list)
     verification_items: list[str] = Field(default_factory=list)
+    retrieval_source: str = "live_web"
+    popularity_label: str | None = None
+    last_verified_at: str | None = None
+    official_status: str | None = None
+    editorial_rank: int = Field(default=0, ge=0, le=3)
+    risk_level: str | None = None
 
 
 class VerifiedRoutePlace(BaseModel):
