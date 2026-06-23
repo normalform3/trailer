@@ -119,8 +119,8 @@ def test_bailian_provider_minimal_connection_check(monkeypatch) -> None:
     assert calls["messages"][0]["content"][0]["text"] == "只回复 OK"
 
 
-def test_bailian_provider_parses_enhanced_response(monkeypatch) -> None:
-    """Test that the enhanced LLM response with itinerary/gear_list/safety_guide is parsed."""
+def test_bailian_provider_ignores_structured_sections_from_response(monkeypatch) -> None:
+    """Guide LLM only owns summary and recommendations; code owns structured sections."""
     class FakeMultiModalConversation:
         @staticmethod
         def call(api_key, model, messages):
@@ -180,15 +180,9 @@ def test_bailian_provider_parses_enhanced_response(monkeypatch) -> None:
 
     assert draft.summary == "两日轻装徒步，路线中等难度。"
     assert draft.recommendations == ["带足饮水", "注意防晒"]
-    assert draft.itinerary is not None
-    assert draft.itinerary.is_multi_day is True
-    assert draft.itinerary.total_days == 2
-    assert len(draft.itinerary.days) == 2
-    assert draft.gear_list is not None
-    assert len(draft.gear_list.categories) == 1
-    assert draft.gear_list.categories[0].category == "基础装备"
-    assert draft.safety_guide is not None
-    assert draft.safety_guide.general_warnings == ["注意天气变化"]
+    assert draft.itinerary is None
+    assert draft.gear_list is None
+    assert draft.safety_guide is None
 
 
 def test_bailian_provider_parses_tool_plan_response(monkeypatch) -> None:

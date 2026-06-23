@@ -48,6 +48,27 @@
 
       button, input, textarea, select { font: inherit; }
 
+      .app-viewport {
+        position: relative;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      .app-main-view {
+        min-height: 100vh;
+        transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: transform;
+      }
+
+      .app-viewport.knowledge-view .app-main-view {
+        transform: translateX(min(96px, 8vw));
+        pointer-events: none;
+      }
+
+      body.knowledge-view {
+        overflow: hidden;
+      }
+
       .app-frame {
         width: min(1480px, calc(100% - 28px));
         margin: 0 auto;
@@ -262,6 +283,8 @@
         gap: 20px;
         align-items: flex-start;
         margin-bottom: 24px;
+        position: relative;
+        z-index: 30;
       }
 
       .brand { display: grid; gap: 8px; }
@@ -291,6 +314,14 @@
         line-height: 1.6;
       }
 
+      .connection-tools {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex: 0 0 auto;
+      }
+
       .status-pill {
         min-width: 120px;
         padding: 10px 14px;
@@ -302,6 +333,128 @@
         font-weight: 800;
         text-align: center;
         box-shadow: 0 8px 24px rgba(50, 45, 30, 0.08);
+      }
+
+      .connection-test-btn {
+        min-height: 38px;
+        padding: 9px 13px;
+        border: 1px solid rgba(80,104,62,0.32);
+        border-radius: 999px;
+        background: #fffcf4;
+        color: var(--moss-dark);
+        font-size: 13px;
+        font-weight: 900;
+        cursor: pointer;
+        box-shadow: 0 8px 24px rgba(50, 45, 30, 0.08);
+        transition: transform 0.18s ease, background 0.2s ease, border-color 0.2s ease;
+      }
+
+      .connection-test-btn:hover {
+        transform: translateY(-1px);
+        border-color: var(--moss);
+        background: var(--fern);
+      }
+
+      .connection-test-btn:active { transform: translateY(0); }
+      .connection-test-btn:disabled { opacity: 0.58; cursor: wait; transform: none; }
+
+      .connection-toast {
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        z-index: 1400;
+        width: min(340px, calc(100vw - 36px));
+        padding: 12px 14px;
+        border: 1px solid rgba(80,104,62,0.24);
+        border-radius: 8px;
+        background: rgba(255,252,244,0.96);
+        color: var(--moss-dark);
+        box-shadow: 0 18px 42px rgba(50,45,30,0.16);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-8px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+
+      .connection-toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .connection-toast.ok {
+        border-color: rgba(80,104,62,0.28);
+        background: rgba(247,252,238,0.98);
+      }
+
+      .connection-toast.fail {
+        border-color: rgba(164,55,41,0.26);
+        background: rgba(255,248,244,0.98);
+      }
+
+      .connection-toast strong {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 13px;
+      }
+
+      .connection-toast span {
+        display: block;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--muted);
+      }
+
+      .connection-toast span.ok { color: var(--moss); }
+      .connection-toast span.fail { color: var(--danger); }
+
+      .route-knowledge-fab {
+        position: fixed;
+        right: 0;
+        top: 50%;
+        z-index: 760;
+        width: auto;
+        min-width: 118px;
+        height: 48px;
+        padding: 0 14px 0 12px;
+        border: 1px solid rgba(80,104,62,0.3);
+        border-right: 0;
+        border-radius: 12px 0 0 12px;
+        background: rgba(255,252,244,0.9);
+        color: var(--moss-dark);
+        box-shadow: -12px 14px 34px rgba(50,45,30,0.12);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transform: translateY(-50%);
+        transition: transform 0.22s ease, background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+      }
+
+      .route-knowledge-fab span {
+        font-size: 22px;
+        line-height: 1;
+      }
+
+      .route-knowledge-fab strong {
+        font-size: 13px;
+        line-height: 1;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
+      .route-knowledge-fab:hover {
+        background: var(--fern);
+        border-color: var(--moss);
+        transform: translate(-5px, -50%);
+      }
+
+      .route-knowledge-fab:active { transform: translate(-2px, -50%); }
+
+      .app-viewport.knowledge-view .route-knowledge-fab {
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(100%, -50%);
       }
 
       /* ---- Module Tabs ---- */
@@ -1078,6 +1231,7 @@
       /* ---- Responsive ---- */
       @media (max-width: 860px) {
         .topbar { display: grid; }
+        .connection-tools { justify-content: start; }
 
         .analysis-layout {
           grid-template-columns: 1fr;
@@ -1099,6 +1253,12 @@
       @media (max-width: 520px) {
         .app-frame { width: min(100% - 20px, 1280px); }
         .shell { padding-top: 18px; }
+        .connection-tools { flex-wrap: wrap; }
+        .route-knowledge-fab {
+          min-width: 104px;
+          height: 44px;
+          padding: 0 11px 0 10px;
+        }
 
         .metrics { grid-template-columns: 1fr 1fr; }
         .mini-grid { grid-template-columns: 1fr; }
@@ -1195,58 +1355,9 @@
         flex: 2;
       }
 
-      .btn-llm-test {
-        flex: 1;
-        min-width: 150px;
-        padding: 14px;
-        border: 1px solid rgba(80, 104, 62, 0.32);
-        border-radius: 8px;
-        background: #fffcf4;
-        color: var(--moss-dark);
-        font-size: 14px;
-        font-weight: 900;
-        cursor: pointer;
-        transition: background 0.2s, border-color 0.2s;
-      }
-
-      .btn-llm-test:hover {
-        background: rgba(223, 232, 202, 0.38);
-        border-color: var(--moss);
-      }
-
-      .btn-llm-test:disabled {
-        opacity: 0.55;
-        cursor: wait;
-      }
-
-      .llm-test-status {
-        display: none;
-        margin-top: 10px;
-        padding: 10px 12px;
-        border-radius: 8px;
-        font-size: 13px;
-        line-height: 1.5;
-      }
-
-      .llm-test-status.show { display: block; }
-      .llm-test-status.ok {
-        border: 1px solid rgba(80, 104, 62, 0.25);
-        background: rgba(223, 232, 202, 0.38);
-        color: var(--moss-dark);
-      }
-      .llm-test-status.fail {
-        border: 1px solid rgba(164, 55, 41, 0.24);
-        background: rgba(164, 55, 41, 0.06);
-        color: var(--danger);
-      }
-
       @media (max-width: 640px) {
         .guide-actions {
           flex-direction: column;
-        }
-
-        .btn-llm-test {
-          width: 100%;
         }
       }
 
@@ -2082,6 +2193,7 @@
         font-size: 12px;
         font-weight: 900;
         text-decoration: none;
+        cursor: pointer;
         box-shadow: 0 10px 22px rgba(50,45,30,0.08);
       }
 
@@ -2416,6 +2528,77 @@
       .knowledge-status.ok { color: var(--moss); }
       .knowledge-status.fail { color: var(--danger); }
 
+      .route-knowledge-page {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        overflow-y: auto;
+        padding: 24px max(18px, calc((100vw - 1260px) / 2));
+        background:
+          radial-gradient(circle at 14% -8%, rgba(244,198,90,0.24), transparent 28rem),
+          linear-gradient(135deg, rgba(247,243,232,0.98), rgba(238,229,209,0.98));
+        transform: translateX(100%);
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+          visibility 0s linear 0.42s;
+        will-change: transform;
+      }
+
+      .app-viewport.knowledge-view .route-knowledge-page {
+        transform: translateX(0);
+        visibility: visible;
+        pointer-events: auto;
+        transition:
+          transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+          visibility 0s;
+      }
+
+      .route-knowledge-page-inner {
+        width: min(1260px, 100%);
+        margin: 0 auto;
+        display: grid;
+        gap: 14px;
+      }
+
+      .route-page-bar {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        min-height: 48px;
+        padding: 4px 0 10px;
+        background: linear-gradient(180deg, rgba(247,243,232,0.98) 0%, rgba(247,243,232,0.86) 72%, rgba(247,243,232,0) 100%);
+      }
+
+      .route-page-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 9px 14px;
+        border: 1px solid rgba(80,104,62,0.32);
+        border-radius: 7px;
+        background: #fffcf4;
+        color: var(--moss-dark);
+        font-size: 13px;
+        font-weight: 900;
+        cursor: pointer;
+        box-shadow: 0 10px 22px rgba(50,45,30,0.08);
+      }
+
+      .route-page-back:hover {
+        border-color: var(--moss);
+        background: var(--fern);
+      }
+
+      .route-page-back span {
+        font-size: 18px;
+        line-height: 1;
+      }
+
       .knowledge-table-wrap {
         overflow-x: auto;
         border: 1px solid var(--line);
@@ -2639,6 +2822,14 @@
           grid-template-columns: 1fr;
         }
 
+        .app-viewport.knowledge-view .app-main-view {
+          transform: translateX(36px);
+        }
+
+        .route-knowledge-page {
+          padding: 14px 12px 24px;
+        }
+
         .history-sidebar {
           position: static;
           max-height: 320px;
@@ -2696,12 +2887,16 @@
         .discovery-compose-foot, .clarify-card { display: grid; grid-template-columns: 1fr; align-items: stretch; }
         .clarify-options { justify-content: flex-start; }
         .selected-route-notice.show { display: grid; }
+        .route-page-bar { min-height: 44px; }
+        .route-page-back { width: 100%; justify-content: center; }
       }
     </style>
   </head>
   <body>
-    <div class="app-frame">
-      <section class="history-sidebar" aria-label="历史攻略">
+    <div class="app-viewport" id="app-viewport">
+      <div class="app-main-view" id="app-main-view">
+        <div class="app-frame">
+          <section class="history-sidebar" aria-label="历史攻略">
         <div class="history-head">
           <div class="history-title-wrap">
             <span class="history-mark" aria-hidden="true">T</span>
@@ -2725,8 +2920,12 @@
           <h1>一站式徒步攻略助手</h1>
           <p class="subtitle">上传已有路线，或让系统为你规划 — 两种方式，一份完整攻略。</p>
         </div>
-        <div id="health" class="status-pill">检查服务中</div>
+        <div class="connection-tools" aria-label="系统连接状态">
+          <div id="health" class="status-pill">检查服务中</div>
+          <button class="connection-test-btn" id="btn-test-connections" type="button">连接测试</button>
+        </div>
       </header>
+      <div id="connection-toast" class="connection-toast" role="status" aria-live="polite"></div>
 
       <!-- Module Tabs -->
       <nav class="module-tabs">
@@ -2774,7 +2973,6 @@
               <h2>先说你想走怎样的山路。</h2>
               <p class="discovery-lead">系统先检索重点省份路线库，不足时再联网补充；只推荐能够找到公开来源的路线名称。选中后，请上传对应轨迹，再进行距离、海拔、天气和风险分析。</p>
             </div>
-            <a class="knowledge-entry-link" href="/route-knowledge-manager">路线库管理</a>
           </div>
           <div class="discovery-compose">
             <textarea id="route-discovery-query" maxlength="1000" placeholder="例如：杭州周边，周末一天，新手，想看溪流和竹林，不想爬升太大，公共交通可达。"></textarea>
@@ -2793,42 +2991,56 @@
         <div id="route-discovery-results" class="discovery-results" aria-live="polite"></div>
       </div>
 
-      <!-- ========== Module 3: Route Knowledge Management ========== -->
-      <div id="module-knowledge" class="module-content">
-        <div class="panel knowledge-board">
-          <div class="knowledge-head">
-            <div>
-              <div class="discovery-kicker">Route knowledge · 本地知识库</div>
-              <h2>管理发现路线的候选知识卡。</h2>
-              <p>这里只维护路线名称、地区、标签、来源和核验状态；精确轨迹、天气和交通仍由上传 KML 与实时工具处理。</p>
-            </div>
-            <div class="knowledge-head-actions">
-              <button class="knowledge-secondary" id="route-knowledge-import" type="button">导入资料</button>
-              <button class="knowledge-primary" id="route-knowledge-create" type="button">新增路线</button>
-              <a class="knowledge-secondary knowledge-back-link" href="/">返回发现路线</a>
-            </div>
-          </div>
-          <div class="knowledge-filters">
-            <label>关键词<input id="route-knowledge-query" type="search" placeholder="路线名、别名、标签、地区" /></label>
-            <label>状态
-              <select id="route-knowledge-status-filter">
-                <option value="">全部</option>
-                <option value="active">active</option>
-                <option value="archived">archived</option>
-                <option value="blocked">blocked</option>
-              </select>
-            </label>
-            <label>省份<input id="route-knowledge-province-filter" type="text" placeholder="浙江" /></label>
-            <label>城市<input id="route-knowledge-city-filter" type="text" placeholder="杭州" /></label>
-            <label>来源类型<input id="route-knowledge-source-filter" type="text" placeholder="official" /></label>
-            <button class="knowledge-secondary" id="route-knowledge-refresh" type="button">刷新</button>
-          </div>
-          <div class="knowledge-status" id="route-knowledge-status" role="status"></div>
-          <section id="route-import-workbench" class="knowledge-import-workbench" aria-label="资料导入工作台"></section>
-          <div id="route-knowledge-list" class="knowledge-table-wrap"></div>
+      </main>
         </div>
       </div>
-      </main>
+
+      <button class="route-knowledge-fab" id="route-knowledge-entry" type="button" aria-label="打开路线库管理" title="路线库管理">
+        <span aria-hidden="true">‹</span>
+        <strong>路线库管理</strong>
+      </button>
+
+      <section id="route-knowledge-page" class="route-knowledge-page" aria-hidden="true" aria-label="路线库管理">
+        <div class="route-knowledge-page-inner">
+          <div class="route-page-bar">
+            <button class="route-page-back" id="route-knowledge-back" type="button">
+              <span aria-hidden="true">‹</span>
+              返回
+            </button>
+          </div>
+          <div class="panel knowledge-board">
+            <div class="knowledge-head">
+              <div>
+                <div class="discovery-kicker">Route knowledge · 本地知识库</div>
+                <h2>管理发现路线的候选知识卡。</h2>
+                <p>这里只维护路线名称、地区、标签、来源和核验状态；精确轨迹、天气和交通仍由上传 KML 与实时工具处理。</p>
+              </div>
+              <div class="knowledge-head-actions">
+                <button class="knowledge-secondary" id="route-knowledge-import" type="button">导入资料</button>
+                <button class="knowledge-primary" id="route-knowledge-create" type="button">新增路线</button>
+              </div>
+            </div>
+            <div class="knowledge-filters">
+              <label>关键词<input id="route-knowledge-query" type="search" placeholder="路线名、别名、标签、地区" /></label>
+              <label>状态
+                <select id="route-knowledge-status-filter">
+                  <option value="">全部</option>
+                  <option value="active">active</option>
+                  <option value="archived">archived</option>
+                  <option value="blocked">blocked</option>
+                </select>
+              </label>
+              <label>省份<input id="route-knowledge-province-filter" type="text" placeholder="浙江" /></label>
+              <label>城市<input id="route-knowledge-city-filter" type="text" placeholder="杭州" /></label>
+              <label>来源类型<input id="route-knowledge-source-filter" type="text" placeholder="official" /></label>
+              <button class="knowledge-secondary" id="route-knowledge-refresh" type="button">刷新</button>
+            </div>
+            <div class="knowledge-status" id="route-knowledge-status" role="status"></div>
+            <section id="route-import-workbench" class="knowledge-import-workbench" aria-label="资料导入工作台"></section>
+            <div id="route-knowledge-list" class="knowledge-table-wrap"></div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <div id="route-detail-backdrop" class="route-detail-backdrop" role="dialog" aria-modal="true" aria-label="路线候选详情">
@@ -2841,6 +3053,8 @@
     <script>
       // ---- DOM refs ----
       const healthEl = document.querySelector("#health");
+      const connectionTestBtn = document.querySelector("#btn-test-connections");
+      const connectionToastEl = document.querySelector("#connection-toast");
       const uploadZone = document.querySelector("#upload-zone");
       const fileInput = document.querySelector("#route_file");
       const fileInfoEl = document.querySelector("#file-info");
@@ -2852,12 +3066,16 @@
       const historyNewRouteBtn = document.querySelector("#history-new-route");
       const historyClearBtn = document.querySelector("#history-clear");
       const appFrameEl = document.querySelector(".app-frame");
+      const appViewportEl = document.querySelector("#app-viewport");
       const historyToggleBtn = document.querySelector("#history-toggle");
       const routeDiscoveryQueryEl = document.querySelector("#route-discovery-query");
       const routeDiscoverySubmitBtn = document.querySelector("#route-discovery-submit");
       const routeDiscoveryCountEl = document.querySelector("#route-discovery-count");
       const routeDiscoveryResultsEl = document.querySelector("#route-discovery-results");
       const routeFeaturedBtn = document.querySelector("#route-featured");
+      const routeKnowledgeEntryBtn = document.querySelector("#route-knowledge-entry");
+      const routeKnowledgeBackBtn = document.querySelector("#route-knowledge-back");
+      const routeKnowledgePageEl = document.querySelector("#route-knowledge-page");
       const routeDetailBackdropEl = document.querySelector("#route-detail-backdrop");
       const routeDetailDrawerEl = document.querySelector("#route-detail-drawer");
       const selectedRouteNoticeEl = document.querySelector("#selected-route-notice");
@@ -2895,6 +3113,7 @@
       let routeKnowledgeRecords = [];
       let routeImportJob = null;
       let routeImportMatches = {};
+      let connectionToastTimer = null;
       const HISTORY_KEY = "trailer.guideHistory.v1";
       const HISTORY_COLLAPSED_KEY = "trailer.historyCollapsed.v1";
       const ROUTE_COLORS = ["#50683e", "#a6532b", "#2e6b9e", "#7b4fa6", "#c47a1e"];
@@ -2906,11 +3125,30 @@
         document.querySelectorAll(".module-content").forEach(c => c.classList.toggle("active", c.id === `module-${moduleName}`));
       }
 
+      function openRouteKnowledgePage() {
+        if (!appViewportEl || !routeKnowledgePageEl) return;
+        appViewportEl.classList.add("knowledge-view");
+        document.body.classList.add("knowledge-view");
+        routeKnowledgePageEl.setAttribute("aria-hidden", "false");
+        if (!routeKnowledgeLoaded) loadRouteKnowledge();
+        window.requestAnimationFrame(() => routeKnowledgeBackBtn?.focus());
+      }
+
+      function closeRouteKnowledgePage() {
+        if (!appViewportEl || !routeKnowledgePageEl) return;
+        appViewportEl.classList.remove("knowledge-view");
+        document.body.classList.remove("knowledge-view");
+        routeKnowledgePageEl.setAttribute("aria-hidden", "true");
+        if (window.location.pathname === '/route-knowledge-manager') {
+          window.history.replaceState(null, '', '/');
+        }
+        routeKnowledgeEntryBtn?.focus();
+      }
+
       document.querySelectorAll(".module-tab").forEach(tab => {
         tab.addEventListener("click", () => {
           if (tab.classList.contains("disabled")) return;
           activateModule(tab.dataset.module);
-          if (tab.dataset.module === "knowledge" && !routeKnowledgeLoaded) loadRouteKnowledge();
         });
       });
 
@@ -2923,6 +3161,68 @@
         } catch {
           healthEl.textContent = "后端未连接";
         }
+      }
+
+      async function testBackendConnection() {
+        try {
+          const response = await fetch('/health', { method: 'GET' });
+          if (!response.ok) {
+            return { ok: false, message: `后端连接失败：HTTP ${response.status}` };
+          }
+          return { ok: true, message: '后端连接成功' };
+        } catch (error) {
+          return { ok: false, message: `后端连接失败：${error.message}` };
+        }
+      }
+
+      async function testLLMHealthConnection() {
+        try {
+          const response = await fetch('/api/v1/llm/health', { method: 'GET' });
+          if (!response.ok) {
+            return { ok: false, message: `LLM 连接失败：HTTP ${response.status}` };
+          }
+          const data = await response.json();
+          if (!data.ok) {
+            return { ok: false, message: `LLM 连接失败：${data.error || '未知错误'}` };
+          }
+          const elapsed = data.elapsed_ms != null ? `，${data.elapsed_ms} ms` : '';
+          const model = data.model ? `（${data.model}${elapsed}）` : elapsed ? `（${elapsed.slice(1)}）` : '';
+          return { ok: true, message: `LLM 连接成功${model}` };
+        } catch (error) {
+          return { ok: false, message: `LLM 连接失败：${error.message}` };
+        }
+      }
+
+      function showConnectionToast(results) {
+        if (!connectionToastEl) return;
+        const ok = results.every(item => item.ok);
+        if (connectionToastTimer) clearTimeout(connectionToastTimer);
+        connectionToastEl.className = `connection-toast show ${ok ? 'ok' : 'fail'}`;
+        connectionToastEl.innerHTML = `
+          <strong>${ok ? '连接测试完成' : '连接测试存在异常'}</strong>
+          ${results.map(item => `<span class="${item.ok ? 'ok' : 'fail'}">${escapeHtml(item.message)}</span>`).join('')}
+        `;
+        connectionToastTimer = setTimeout(() => {
+          connectionToastEl.classList.remove('show');
+        }, 7200);
+      }
+
+      async function testConnections() {
+        if (!connectionTestBtn) return;
+        connectionTestBtn.disabled = true;
+        connectionTestBtn.textContent = '测试中...';
+        if (connectionToastEl) {
+          connectionToastEl.className = 'connection-toast show';
+          connectionToastEl.innerHTML = '<strong>正在测试连接</strong><span>同时检查 LLM 服务与后端服务...</span>';
+        }
+        const [llm, backend] = await Promise.all([
+          testLLMHealthConnection(),
+          testBackendConnection(),
+        ]);
+        healthEl.textContent = backend.ok ? '后端在线' : '后端未连接';
+        showConnectionToast([llm, backend]);
+        connectionTestBtn.disabled = false;
+        connectionTestBtn.textContent = '连接测试';
       }
 
       // ---- AMap Config ----
@@ -4393,8 +4693,8 @@
       checkHealth();
       loadMapConfig();
       const isKnowledgeManagerPage = window.location.pathname === '/route-knowledge-manager';
-      activateModule(isKnowledgeManagerPage ? 'knowledge' : 'plan');
-      if (isKnowledgeManagerPage) loadRouteKnowledge();
+      activateModule('plan');
+      if (isKnowledgeManagerPage) openRouteKnowledgePage();
       if (routeDiscoveryQueryEl) {
         routeDiscoveryQueryEl.addEventListener('input', () => {
           routeDiscoveryCountEl.textContent = `${routeDiscoveryQueryEl.value.length} / 1000`;
@@ -4405,6 +4705,13 @@
       }
       if (routeDiscoverySubmitBtn) routeDiscoverySubmitBtn.addEventListener('click', requestRouteRecommendations);
       if (routeFeaturedBtn) routeFeaturedBtn.addEventListener('click', loadFeaturedRoutes);
+      if (connectionTestBtn) connectionTestBtn.addEventListener('click', testConnections);
+      if (routeKnowledgeEntryBtn) routeKnowledgeEntryBtn.addEventListener('click', openRouteKnowledgePage);
+      if (routeKnowledgeBackBtn) {
+        routeKnowledgeBackBtn.addEventListener('click', () => {
+          closeRouteKnowledgePage();
+        });
+      }
       if (routeKnowledgeCreateBtn) routeKnowledgeCreateBtn.addEventListener('click', () => openRouteKnowledgeEditor());
       if (routeKnowledgeImportBtn) routeKnowledgeImportBtn.addEventListener('click', openRouteImportWorkbench);
       if (routeKnowledgeRefreshBtn) routeKnowledgeRefreshBtn.addEventListener('click', loadRouteKnowledge);
@@ -4433,8 +4740,16 @@
         });
       }
       document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && routeDetailBackdropEl?.classList.contains('show')) closeRouteDetail();
-        if (event.key === 'Escape' && routeKnowledgeEditorBackdropEl?.classList.contains('show')) closeRouteKnowledgeEditor();
+        if (event.key !== 'Escape') return;
+        if (routeDetailBackdropEl?.classList.contains('show')) {
+          closeRouteDetail();
+          return;
+        }
+        if (routeKnowledgeEditorBackdropEl?.classList.contains('show')) {
+          closeRouteKnowledgeEditor();
+          return;
+        }
+        if (appViewportEl?.classList.contains('knowledge-view')) closeRouteKnowledgePage();
       });
       setHistoryCollapsed(localStorage.getItem(HISTORY_COLLAPSED_KEY) === 'true');
       renderGuideHistory();
@@ -4554,10 +4869,8 @@
               <textarea id="guide-reference-notes" placeholder="也可以直接粘贴你整理的攻略片段、住宿/补给/交通线索。"></textarea>
             </div>
             <div class="guide-actions">
-              <button class="btn-llm-test" id="btn-test-llm" type="button">测试 LLM 连接</button>
               <button class="btn-generate" id="btn-generate-guide" type="button">生成攻略</button>
             </div>
-            <div class="llm-test-status" id="llm-test-status" role="status"></div>
           </div>
         `;
         parseResults.insertAdjacentHTML('beforeend', formHtml);
@@ -4576,7 +4889,6 @@
         }
 
         document.getElementById('btn-generate-guide').addEventListener('click', submitGuideRequest);
-        document.getElementById('btn-test-llm').addEventListener('click', testLLMConnection);
       }
 
       // ---- Loading Overlay ----
@@ -4744,38 +5056,6 @@
         `;
         list.appendChild(item);
         list.scrollTop = list.scrollHeight;
-      }
-
-      async function testLLMConnection() {
-        const btn = document.getElementById('btn-test-llm');
-        const statusEl = document.getElementById('llm-test-status');
-        if (!btn || !statusEl) return;
-
-        btn.disabled = true;
-        btn.textContent = '测试中...';
-        statusEl.className = 'llm-test-status show';
-        statusEl.textContent = '正在用最短回复测试 LLM 连接...';
-
-        try {
-          const res = await fetch('/api/v1/llm/health', { method: 'GET' });
-          if (!res.ok) throw new Error(res.statusText || '请求失败');
-          const data = await res.json();
-          if (data.ok) {
-            const elapsed = data.elapsed_ms != null ? `，耗时 ${data.elapsed_ms} ms` : '';
-            const preview = data.reply_preview ? `，回复：${data.reply_preview}` : '';
-            statusEl.className = 'llm-test-status show ok';
-            statusEl.textContent = `LLM 连接正常（${data.model || '当前模型'}${elapsed}${preview}）`;
-          } else {
-            statusEl.className = 'llm-test-status show fail';
-            statusEl.textContent = `LLM 连接失败：${data.error || '未知错误'}`;
-          }
-        } catch (e) {
-          statusEl.className = 'llm-test-status show fail';
-          statusEl.textContent = `LLM 连接测试失败：${e.message}`;
-        } finally {
-          btn.disabled = false;
-          btn.textContent = '测试 LLM 连接';
-        }
       }
 
       // ---- Submit Guide Request ----

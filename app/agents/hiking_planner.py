@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from typing import Any, TypedDict
 
@@ -21,6 +22,7 @@ from app.models import (
 from app.agents.tools import GuideToolRegistry
 from app.providers.llm import (
     BailianQwenGuideProvider,
+    GuideDraft,
     GuideLLMProvider,
     GuidePlanningProvider,
     StaticGuidePlanningProvider,
@@ -75,6 +77,7 @@ class HikingGuideAgent:
         transport_provider: TransportPlanningProvider | None = None,
         planning_provider: GuidePlanningProvider | None = None,
         llm_provider: GuideLLMProvider | None = None,
+        enable_llm_planner: bool = False,
     ) -> None:
         self.ingestion_service = ingestion_service or RouteIngestionService()
         self.planner_service = planner_service or RoutePlannerService()
@@ -87,6 +90,7 @@ class HikingGuideAgent:
         self.static_planning_provider = StaticGuidePlanningProvider()
         self.template_provider = TemplateGuideProvider()
         self.llm_provider = llm_provider or BailianQwenGuideProvider()
+        self.enable_llm_planner = enable_llm_planner
         self.tools = GuideToolRegistry(
             weather_provider=self.weather_provider,
             travel_research_provider=self.travel_research_provider,
@@ -132,6 +136,7 @@ class HikingGuideAgent:
             ("collect_research", self._collect_research),
             ("plan_transport", self._plan_transport),
             ("compose_guide", self._compose_guide),
+            ("review_guide", self._review_guide),
             ("collect_reference", self._collect_reference),
         ]:
             for event in apply_step(name, step):
@@ -177,6 +182,7 @@ class HikingGuideAgent:
         graph.add_node("collect_research", self._collect_research)
         graph.add_node("plan_transport", self._plan_transport)
         graph.add_node("compose_guide", self._compose_guide)
+        graph.add_node("review_guide", self._review_guide)
         graph.add_node("collect_reference", self._collect_reference)
 
         graph.set_entry_point("ingest_route")
@@ -191,7 +197,8 @@ class HikingGuideAgent:
         graph.add_edge("analyze_route", "collect_research")
         graph.add_edge("collect_research", "plan_transport")
         graph.add_edge("plan_transport", "compose_guide")
-        graph.add_edge("compose_guide", "collect_reference")
+        graph.add_edge("compose_guide", "review_guide")
+        graph.add_edge("review_guide", "collect_reference")
         graph.add_edge("collect_reference", END)
         return graph.compile()
 
@@ -268,28 +275,41 @@ class HikingGuideAgent:
         llm_usage = list(state.get("llm_usage", []))
         routes = state.get("routes", [])
 
-        try:
-            raw_decision = self.planning_provider.plan_tools(request, routes, warnings, data_sources)
-            decision = self._normalize_decision(raw_decision, request, routes)
-            llm_usage.append("planner:llm")
-            data_sources.append("LLM 工具调度")
-            trace_status = "completed"
-            trace_detail = _tool_plan_detail(decision.tool_plan)
-            trace_rationale = decision.tool_plan.rationale or [
-                "Planner 已根据路线、出发城市、日期和偏好选择后续工具。"
-            ]
-        except Exception as exc:  # noqa: BLE001 - planner should degrade to code defaults.
-            fallback_reason = _planner_fallback_reason(exc)
+        if not self.enable_llm_planner:
             decision = self._normalize_decision(
                 self.static_planning_provider.plan_tools(request, routes, warnings, data_sources),
                 request,
                 routes,
             )
-            warnings.append(f"LLM planner 暂不可用，已使用保守默认工具计划继续生成：{fallback_reason}")
-            llm_usage.append("planner:default")
-            trace_status = "fallback"
+            llm_usage.append("planner:rules")
+            data_sources.append("规则工具调度")
+            trace_status = "completed"
             trace_detail = _tool_plan_detail(decision.tool_plan)
-            trace_rationale = [f"LLM planner 暂不可用，使用保守默认工具计划继续生成。原因：{fallback_reason}"]
+            trace_rationale = decision.tool_plan.rationale or ["使用代码规则选择后续工具。"]
+        else:
+            try:
+                raw_decision = self.planning_provider.plan_tools(request, routes, warnings, data_sources)
+                decision = self._normalize_decision(raw_decision, request, routes)
+                llm_usage.append("planner:llm")
+                data_sources.append("LLM 工具调度")
+                trace_status = "completed"
+                trace_detail = _tool_plan_detail(decision.tool_plan)
+                trace_rationale = decision.tool_plan.rationale or [
+                    "Planner 已根据路线、出发城市、日期和偏好选择后续工具。"
+                ]
+            except Exception as exc:  # noqa: BLE001 - planner should degrade to code defaults.
+                fallback_reason = _planner_fallback_reason(exc)
+                decision = self._normalize_decision(
+                    self.static_planning_provider.plan_tools(request, routes, warnings, data_sources),
+                    request,
+                    routes,
+                )
+                warnings.append(f"LLM planner 暂不可用，已使用规则工具计划继续生成：{fallback_reason}")
+                llm_usage.append("planner:rules")
+                data_sources.append("规则工具调度")
+                trace_status = "fallback"
+                trace_detail = _tool_plan_detail(decision.tool_plan)
+                trace_rationale = [f"LLM planner 暂不可用，使用规则工具计划继续生成。原因：{fallback_reason}"]
 
         return _with_trace(
             {
@@ -505,47 +525,51 @@ class HikingGuideAgent:
         transport_plan = state.get("transport_plan")
         tool_plan = state.get("tool_plan") or GuideToolPlan()
         llm_usage = list(state.get("llm_usage", []))
+        llm_itinerary_days: int | None = None
+        skeleton = self.tools.guide_composer_tool().generate_guide(
+            request,
+            candidates,
+            warnings,
+            data_sources,
+            travel_research=travel_research,
+            transport_plan=transport_plan,
+        )
         if not tool_plan.compose_with_llm:
-            draft = self.tools.guide_composer_tool().generate_guide(
-                request,
-                candidates,
-                warnings,
-                data_sources,
-                travel_research=travel_research,
-                transport_plan=transport_plan,
-            )
+            draft = skeleton
             data_sources.append(draft.source)
             llm_usage.append("composer:template")
             compose_status = "skipped"
             compose_detail = "Planner 关闭最终 LLM 写作，已使用模板生成结构化攻略。"
         else:
             try:
-                draft = self.llm_provider.generate_guide(
+                llm_draft = self.llm_provider.generate_guide(
                     request,
                     candidates,
                     warnings,
                     data_sources,
                     travel_research=travel_research,
                     transport_plan=transport_plan,
+                )
+                llm_itinerary_days = llm_draft.itinerary.total_days if llm_draft.itinerary else None
+                draft = GuideDraft(
+                    summary=llm_draft.summary,
+                    recommendations=llm_draft.recommendations,
+                    source=llm_draft.source,
+                    itinerary=skeleton.itinerary,
+                    gear_list=skeleton.gear_list,
+                    safety_guide=skeleton.safety_guide,
                 )
                 data_sources.append(draft.source)
                 llm_usage.append("composer:template" if draft.source == "template" else "composer:llm")
                 compose_status = "completed" if draft.source != "template" else "fallback"
                 compose_detail = (
-                    "已把路线、天气、交通和周边信息交给 LLM 生成最终攻略。"
+                    "已把代码生成的结构化行前材料交给 LLM 生成摘要和建议。"
                     if draft.source != "template"
                     else "LLM provider 返回模板结果，已继续完成攻略。"
                 )
             except Exception as exc:  # noqa: BLE001 - LLM outages should degrade to templates.
                 warnings.append(f"百炼模型暂不可用，已使用模板生成攻略：{exc}")
-                draft = self.tools.guide_composer_tool().generate_guide(
-                    request,
-                    candidates,
-                    warnings,
-                    data_sources,
-                    travel_research=travel_research,
-                    transport_plan=transport_plan,
-                )
+                draft = skeleton
                 data_sources.append(draft.source)
                 llm_usage.append("composer:template")
                 compose_status = "fallback"
@@ -556,6 +580,8 @@ class HikingGuideAgent:
             schedule_context = self.template_provider.itinerary_planning_context(request, candidates)
             schedule_notes = list(schedule_context["notes"])
             expected_days = int(schedule_context["planned_days"])
+            if llm_itinerary_days is not None and llm_itinerary_days != expected_days:
+                schedule_notes.append(f"已按路线强度和用户日期校准行程为 {expected_days} 天。")
             if draft.itinerary is None or draft.itinerary.total_days != expected_days:
                 draft.itinerary = self.template_provider._template_itinerary(request, candidates, self.template_provider._aggregate_candidates(candidates))
                 schedule_notes.append(f"已按路线强度和用户日期校准行程为 {expected_days} 天。")
@@ -591,6 +617,41 @@ class HikingGuideAgent:
             disclaimer="本攻略为行前规划建议，不可替代专业导航、景区公告、封山/防火通知或救援信息。",
         )
         return {**traced_state, "response": response}
+
+    def _review_guide(self, state: HikingPlannerState) -> HikingPlannerState:
+        response = state["response"]
+        review_notes = _unsupported_claim_notes(response.summary, response.recommendations)
+        if not review_notes:
+            return _with_response_trace(
+                state,
+                AgentTraceEvent(
+                    phase="review",
+                    title="攻略规则审核",
+                    status="completed",
+                    detail="未发现明显缺少证据的强事实表达。",
+                    tool_name="guide_reviewer",
+                ),
+            )
+
+        updated_response = response.model_copy(
+            update={
+                "validation_notes": _dedupe([*response.validation_notes, *review_notes]),
+            }
+        )
+        traced_state = _with_trace(
+            {**state, "response": updated_response},
+            AgentTraceEvent(
+                phase="review",
+                title="攻略规则审核",
+                status="warning",
+                detail=f"发现 {len(review_notes)} 条需要人工核验的强事实表达。",
+                tool_name="guide_reviewer",
+            ),
+        )
+        refreshed_response = traced_state["response"].model_copy(
+            update={"agent_trace": traced_state.get("agent_trace", [])}
+        )
+        return {**traced_state, "response": refreshed_response}
 
     def _collect_reference(self, state: HikingPlannerState) -> HikingPlannerState:
         request = state["request"]
@@ -737,6 +798,7 @@ class _SequentialPlannerGraph:
         state = self.agent._collect_research(state)
         state = self.agent._plan_transport(state)
         state = self.agent._compose_guide(state)
+        state = self.agent._review_guide(state)
         return self.agent._collect_reference(state)
 
 
@@ -803,6 +865,29 @@ def _planner_fallback_reason(exc: Exception) -> str:
     if "dashscope package is not installed" in text:
         return "未安装 dashscope 依赖"
     return text or exc.__class__.__name__
+
+
+def _unsupported_claim_notes(summary: str, recommendations: list[str]) -> list[str]:
+    text = "\n".join([summary, *recommendations])
+    checks = [
+        ("热门路线", "热门程度"),
+        ("社区热门", "社区热门程度"),
+        ("社区评价", "社区评价"),
+        ("余票", "余票"),
+        ("余房", "余房"),
+        ("官方确认", "官方确认"),
+        ("官方已开放", "官方开放状态"),
+        ("开放状态正常", "开放状态"),
+        ("票价为", "票价"),
+        ("价格为", "价格"),
+    ]
+    notes: list[str] = []
+    for pattern, label in checks:
+        if pattern in text:
+            notes.append(f"审核提示：攻略包含可能缺少证据的强事实「{label}」，请以官方渠道或实时平台核验。")
+    if re.search(r"(?:票价|价格|门票|住宿).{0,12}\d+\s*元", text):
+        notes.append("审核提示：攻略包含具体金额表达，请以官方渠道或实时平台核验。")
+    return _dedupe(notes)
 
 
 def _dedupe(values: list[str]) -> list[str]:

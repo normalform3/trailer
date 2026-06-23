@@ -52,6 +52,15 @@ class FailingPlanningProvider:
         raise RuntimeError("planner down")
 
 
+class StrongClaimLLMProvider:
+    def generate_guide(self, *args, **kwargs):
+        return GuideDraft(
+            summary="这是社区热门路线，官方确认开放，住宿价格为 200 元。",
+            recommendations=["当前仍有余房和余票。"],
+            source="bailian:test",
+        )
+
+
 class FailingLLMProvider:
     def generate_guide(self, *args, **kwargs):
         raise RuntimeError("composer down")
@@ -309,6 +318,7 @@ def test_agent_tool_plan_controls_weather_research_and_transport() -> None:
             )
         ),
         llm_provider=TemplateGuideProvider(),
+        enable_llm_planner=True,
     )
 
     response = agent.generate(HikingGuideRequest(destination="武功山", start_city="上海"))
@@ -403,7 +413,7 @@ def test_agent_does_not_plan_transport_without_start_city() -> None:
     assert response.transport_plan is None
 
 
-def test_agent_degrades_failing_tool_planner_to_default_plan() -> None:
+def test_agent_uses_rules_planner_by_default_even_when_llm_planner_fails() -> None:
     weather = RecordingWeatherProvider()
     research = RecordingResearchProvider()
     agent = HikingGuideAgent(
@@ -422,7 +432,31 @@ def test_agent_degrades_failing_tool_planner_to_default_plan() -> None:
     assert research.calls == [
         {"include_lodging": True, "include_food": True, "include_supply": True}
     ]
-    assert "planner:default" in response.llm_usage
+    assert "planner:rules" in response.llm_usage
+    assert not any("LLM planner 暂不可用" in warning for warning in response.warnings)
+
+
+def test_agent_degrades_enabled_failing_tool_planner_to_rules_plan() -> None:
+    weather = RecordingWeatherProvider()
+    research = RecordingResearchProvider()
+    agent = HikingGuideAgent(
+        planner_service=RecordingPlanner(),
+        analysis_service=RouteAnalysisService(),
+        weather_provider=weather,
+        travel_research_provider=research,
+        transport_provider=RecordingTransportProvider(),
+        planning_provider=FailingPlanningProvider(),
+        llm_provider=TemplateGuideProvider(),
+        enable_llm_planner=True,
+    )
+
+    response = agent.generate(HikingGuideRequest(destination="武功山"))
+
+    assert len(weather.calls) == 1
+    assert research.calls == [
+        {"include_lodging": True, "include_food": True, "include_supply": True}
+    ]
+    assert "planner:rules" in response.llm_usage
     assert any("LLM planner 暂不可用" in warning for warning in response.warnings)
 
 
@@ -465,6 +499,26 @@ def test_agent_corrects_llm_itinerary_to_user_selected_days() -> None:
     assert any("校准行程为 4 天" in note for note in response.validation_notes)
 
 
+def test_agent_keeps_template_skeleton_when_llm_omits_structured_sections() -> None:
+    agent = HikingGuideAgent(
+        planner_service=RecordingPlanner(),
+        analysis_service=RouteAnalysisService(),
+        travel_research_provider=StaticTravelResearchProvider(),
+        transport_provider=StaticTransportProvider(),
+        planning_provider=FixedPlanningProvider(GuideToolPlan()),
+        llm_provider=StrongClaimLLMProvider(),
+    )
+
+    response = agent.generate(HikingGuideRequest(destination="武功山"))
+
+    assert response.summary.startswith("这是社区热门路线")
+    assert response.itinerary is not None
+    assert response.gear_list is not None
+    assert response.safety_guide is not None
+    assert any(event.tool_name == "guide_reviewer" for event in response.agent_trace)
+    assert any("强事实" in note for note in response.validation_notes)
+
+
 def test_agent_keeps_non_blocking_clarifying_questions() -> None:
     agent = HikingGuideAgent(
         planner_service=RecordingPlanner(),
@@ -479,6 +533,7 @@ def test_agent_keeps_non_blocking_clarifying_questions() -> None:
             )
         ),
         llm_provider=TemplateGuideProvider(),
+        enable_llm_planner=True,
     )
 
     response = agent.generate(HikingGuideRequest(destination="武功山"))

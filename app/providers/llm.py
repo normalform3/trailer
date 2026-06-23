@@ -539,28 +539,11 @@ class BailianQwenGuideProvider:
                                 "不得编造热门程度、社区评价、未提供的交通班次、余房或住宿价格。\n\n"
                                 "输出必须是 JSON 对象，包含以下字段：\n"
                                 "1. \"summary\": 综合概述（2-4句，包含路线特征、难度评估、行程天数判断）\n"
-                                "2. \"recommendations\": 建议列表（6-10条，按重要性排序，涵盖出发前准备、行程注意事项、天气关注点）\n"
-                                "3. \"itinerary\": 行程日程规划，包含：\n"
-                                "   - \"is_multi_day\": boolean，是否多日行程（超过8小时或超过20km且有住宿需求则视为多日）\n"
-                                "   - \"total_days\": 总天数\n"
-                                "   - \"days\": 数组，每个包含 day_number(int), title(str), distance_km(float), elevation_gain_m(float|null), "
-                                "key_segments(str[]), lodging_suggestion(str|null), notes(str[])\n"
-                                "4. \"gear_list\": 装备物资清单，包含：\n"
-                                "   - \"categories\": 数组，每个包含 category(str: 基础装备|衣物防护|饮食补给|安全应急|电子导航|其他), items(str[])\n"
-                                "   - \"notes\": 装备补充说明(str[])\n"
-                                "   生成规则：基于 distance_km、elevation、risk_level、weather、fitness_level 决定。"
-                                "高海拔(>3000m)增加防寒层/防晒/电解质；长距离(>20km)增加备用鞋/路粮；"
-                                "降水概率高增加防水外套/防水袋；初学者增加护膝/登山杖\n"
-                                "5. \"safety_guide\": 安全提醒，包含：\n"
-                                "   - \"general_warnings\": 一般安全警告(str[], 3-5条)\n"
-                                "   - \"risk_points\": 路线风险点(str[]，每个含 location_description, risk_type, severity(low|medium|high), mitigation)\n"
-                                "   - \"emergency_contacts\": 应急联系建议(str[])\n"
-                                "   - \"emergency_measures\": 应急措施(str[], 3-5条)\n"
-                                "   - \"seasonal_notes\": 季节性注意事项(str[])\n\n"
+                                "2. \"recommendations\": 建议列表（6-10条，按重要性排序，涵盖出发前准备、行程注意事项、天气关注点）\n\n"
+                                "不要输出 itinerary、gear_list 或 safety_guide；这些结构化字段由代码根据路线指标、天气阈值和用户日期生成。\n"
                                 "重要规则：route_candidates 中的多条路线通常是同一条步道的多个分段拼接（而非备选路线）。"
-                                "请将所有分段的距离和耗时相加得到全程数据，行程日程要覆盖全部分段，"
-                                "summary 中要体现全程总距离和总耗时。\n"
-                                "若输入 JSON 含 itinerary_planning，必须遵守其中 planned_days 生成对应天数的 days；"
+                                "请将所有分段的距离和耗时相加得到全程数据，summary 或 recommendations 中要体现全程总距离和总耗时。\n"
+                                "若输入 JSON 含 itinerary_planning，摘要和建议必须尊重其中 planned_days；"
                                 "当 mode 为 too_short/too_long/relaxed 时，要在 summary 或 recommendations 中提示"
                                 "用户选择天数、最短建议天数和合理范围。用户天数比最短建议多 1-3 天时，"
                                 "不要删减天数，应加入抵达适应、周边游览、摄影休整或天气缓冲。\n\n"
@@ -581,38 +564,10 @@ class BailianQwenGuideProvider:
         if not isinstance(recommendations, list):
             raise RuntimeError("LLM response recommendations must be a list")
 
-        # 解析可选字段，容错处理
-        itinerary = None
-        try:
-            itinerary_data = parsed.get("itinerary")
-            if itinerary_data and isinstance(itinerary_data, dict):
-                itinerary = Itinerary(**itinerary_data)
-        except Exception:  # noqa: BLE001
-            pass
-
-        gear_list = None
-        try:
-            gear_data = parsed.get("gear_list")
-            if gear_data and isinstance(gear_data, dict):
-                gear_list = GearList(**gear_data)
-        except Exception:  # noqa: BLE001
-            pass
-
-        safety_guide = None
-        try:
-            safety_data = parsed.get("safety_guide")
-            if safety_data and isinstance(safety_data, dict):
-                safety_guide = SafetyGuide(**safety_data)
-        except Exception:  # noqa: BLE001
-            pass
-
         return GuideDraft(
             summary=summary,
             recommendations=[str(item).strip() for item in recommendations if str(item).strip()],
             source=f"bailian:{self.model}",
-            itinerary=itinerary,
-            gear_list=gear_list,
-            safety_guide=safety_guide,
         )
 
     def plan_tools(
