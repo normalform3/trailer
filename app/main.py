@@ -15,6 +15,14 @@ from app.models import (
     Coordinate,
     HikingGuideRequest,
     HikingGuideResponse,
+    RouteKnowledgeCreate,
+    RouteKnowledgeListResponse,
+    RouteKnowledgeRecord,
+    RouteKnowledgeUpdate,
+    RouteImportApplyRequest,
+    RouteImportApplyResponse,
+    RouteImportJobRecord,
+    RouteImportRequest,
     RouteRecommendationRequest,
     RouteRecommendationResponse,
 )
@@ -23,6 +31,8 @@ from app.providers.transport import RoughTransportProvider
 from app.providers.weather import AmapWeatherProvider, CompositeWeatherProvider, DailyForecast, NoopWeatherProvider, OpenMeteoWeatherProvider, WeatherProvider
 from app.services.route_analysis import RouteAnalysisService
 from app.services.route_ingestion import RouteIngestionError, RouteIngestionService
+from app.services.route_knowledge import SQLiteRouteKnowledgeRepository
+from app.services.route_knowledge_import import RouteKnowledgeImportService
 from app.services.route_recommendations import (
     RouteRecommendationService,
     RouteRecommendationUnavailable,
@@ -51,7 +61,9 @@ _ingestion = RouteIngestionService()
 _analysis = RouteAnalysisService()
 _amap_weather = AmapWeatherProvider() if get_settings().api_keys.amap_api_key else None
 _open_meteo_weather = OpenMeteoWeatherProvider(timeout_s=15.0)
-_route_recommendation_service = RouteRecommendationService()
+_route_knowledge_repository = SQLiteRouteKnowledgeRepository()
+_route_import_service = RouteKnowledgeImportService(_route_knowledge_repository)
+_route_recommendation_service = RouteRecommendationService(knowledge_repository=_route_knowledge_repository)
 DEFAULT_WEATHER_RANGE_DAYS = 7
 MAX_WEATHER_RANGE_DAYS = 16
 
@@ -63,6 +75,11 @@ def health() -> dict[str, str]:
 
 @app.get("/", response_class=FileResponse)
 def frontend() -> FileResponse:
+    return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/route-knowledge-manager", response_class=FileResponse)
+def route_knowledge_manager() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
@@ -85,6 +102,90 @@ def llm_health() -> dict[str, object]:
             "model": provider.model,
             "error": _public_llm_error(exc),
         }
+
+
+@app.get("/api/v1/route-knowledge", response_model=RouteKnowledgeListResponse)
+def list_route_knowledge(
+    query: str | None = Query(default=None, max_length=120),
+    status: str | None = Query(default=None, pattern="^(active|archived|blocked)$"),
+    province: str | None = Query(default=None, max_length=40),
+    city: str | None = Query(default=None, max_length=40),
+    source_type: str | None = Query(default=None, max_length=60),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> RouteKnowledgeListResponse:
+    return _route_knowledge_repository.list_records(
+        query=query,
+        status=status,
+        province=province,
+        city=city,
+        source_type=source_type,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@app.post("/api/v1/route-knowledge/import-jobs", response_model=RouteImportJobRecord, status_code=201)
+def create_route_import_job(payload: RouteImportRequest) -> RouteImportJobRecord:
+    return _route_import_service.create_job(payload)
+
+
+@app.get("/api/v1/route-knowledge/import-jobs/{job_id}", response_model=RouteImportJobRecord)
+def get_route_import_job(job_id: str) -> RouteImportJobRecord:
+    job = _route_import_service.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="导入任务不存在")
+    return job
+
+
+@app.post("/api/v1/route-knowledge/import-jobs/{job_id}/apply", response_model=RouteImportApplyResponse)
+def apply_route_import_job(job_id: str, payload: RouteImportApplyRequest) -> RouteImportApplyResponse:
+    try:
+        return _route_import_service.apply_job(job_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/route-knowledge/{route_id}", response_model=RouteKnowledgeRecord)
+def get_route_knowledge(route_id: str) -> RouteKnowledgeRecord:
+    record = _route_knowledge_repository.get_record(route_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="路线知识条目不存在")
+    return record
+
+
+@app.post("/api/v1/route-knowledge", response_model=RouteKnowledgeRecord, status_code=201)
+def create_route_knowledge(payload: RouteKnowledgeCreate) -> RouteKnowledgeRecord:
+    try:
+        return _route_knowledge_repository.create_record(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.put("/api/v1/route-knowledge/{route_id}", response_model=RouteKnowledgeRecord)
+def update_route_knowledge(route_id: str, payload: RouteKnowledgeUpdate) -> RouteKnowledgeRecord:
+    record = _route_knowledge_repository.update_record(route_id, payload)
+    if record is None:
+        raise HTTPException(status_code=404, detail="路线知识条目不存在")
+    return record
+
+
+@app.delete("/api/v1/route-knowledge/{route_id}")
+def delete_route_knowledge(
+    route_id: str,
+    mode: str = Query(default="archive", pattern="^(archive|hard)$"),
+    confirm: str | None = Query(default=None, max_length=120),
+) -> dict[str, str]:
+    if mode == "hard":
+        if confirm != route_id:
+            raise HTTPException(status_code=400, detail="永久删除需要 confirm 参数等于路线 ID")
+        if not _route_knowledge_repository.delete_record(route_id):
+            raise HTTPException(status_code=404, detail="路线知识条目不存在")
+        return {"status": "deleted", "id": route_id}
+    record = _route_knowledge_repository.archive_record(route_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="路线知识条目不存在")
+    return {"status": "archived", "id": route_id}
 
 
 @app.post("/api/v1/route-recommendations", response_model=RouteRecommendationResponse)

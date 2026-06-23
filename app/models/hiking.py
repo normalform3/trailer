@@ -4,7 +4,7 @@ from datetime import date
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class RouteSource(StrEnum):
@@ -126,6 +126,213 @@ class RouteRecommendationResponse(BaseModel):
     clarifying_question: RouteRecommendationQuestion | None = None
     warnings: list[str] = Field(default_factory=list)
     data_sources: list[str] = Field(default_factory=list)
+
+
+RouteKnowledgeStatus = Literal["active", "archived", "blocked"]
+RouteImportAction = Literal["create", "merge", "ignore", "needs_review"]
+RouteImportStatus = Literal["pending", "applied", "ignored", "needs_review"]
+
+
+class RouteKnowledgeSource(BaseModel):
+    id: int | None = None
+    title: str = Field(min_length=1, max_length=200)
+    url: str
+    source_type: str = Field(default="web", min_length=1, max_length=60)
+    published_at: str | None = Field(default=None, max_length=40)
+    summary: str | None = Field(default=None, max_length=500)
+
+    @field_validator("url")
+    @classmethod
+    def require_public_http_url(cls, value: str) -> str:
+        value = value.strip()
+        if not value.startswith(("https://", "http://")):
+            raise ValueError("source URL must use http(s)")
+        return value
+
+    @field_validator("published_at", "summary", mode="before")
+    @classmethod
+    def strip_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = str(value).strip()
+        return value or None
+
+
+class RouteKnowledgePayload(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    province: str = Field(min_length=1, max_length=40)
+    city: str = Field(min_length=1, max_length=40)
+    summary: str | None = Field(default=None, max_length=500)
+    difficulty: str | None = Field(default=None, max_length=40)
+    distance_km: float | None = Field(default=None, ge=0, le=500)
+    duration_hours: float | None = Field(default=None, gt=0, le=72)
+    ascent_m: float | None = Field(default=None, ge=0, le=20000)
+    camping: bool | None = None
+    seasons: list[str] = Field(default_factory=list)
+    aliases: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    transport_notes: list[str] = Field(default_factory=list)
+    editorial_rank: int = Field(default=0, ge=0, le=3)
+    official_status: str = Field(default="unverified", min_length=1, max_length=60)
+    risk_level: str = Field(default="normal", min_length=1, max_length=40)
+    risk_notes: list[str] = Field(default_factory=list)
+    status: RouteKnowledgeStatus = "active"
+    last_verified_at: str | None = Field(default=None, max_length=40)
+    sources: list[RouteKnowledgeSource] = Field(default_factory=list)
+
+    @field_validator("name", "province", "city")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("field is required")
+        return value
+
+    @field_validator("summary", "difficulty", "last_verified_at", mode="before")
+    @classmethod
+    def strip_optional_route_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = str(value).strip()
+        return value or None
+
+    @field_validator("seasons", "aliases", "tags", "transport_notes", "risk_notes", mode="before")
+    @classmethod
+    def normalize_string_list(cls, value: list[str] | str | None) -> list[str]:
+        if value is None:
+            return []
+        items = value.split(",") if isinstance(value, str) else value
+        seen: set[str] = set()
+        result: list[str] = []
+        for item in items:
+            text = str(item).strip()
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            result.append(text)
+        return result
+
+
+class RouteKnowledgeCreate(RouteKnowledgePayload):
+    id: str | None = Field(default=None, min_length=1, max_length=80)
+
+
+class RouteKnowledgeUpdate(RouteKnowledgePayload):
+    pass
+
+
+class RouteKnowledgeRecord(RouteKnowledgePayload):
+    id: str
+    region: str
+    source_count: int = 0
+
+
+class RouteKnowledgeListResponse(BaseModel):
+    records: list[RouteKnowledgeRecord]
+    total: int
+    limit: int
+    offset: int
+
+
+class RouteImportRequest(BaseModel):
+    source_url: str | None = Field(default=None, max_length=1000)
+    raw_text: str | None = Field(default=None, max_length=30000)
+
+    @field_validator("source_url")
+    @classmethod
+    def validate_source_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            return None
+        if not value.startswith(("https://", "http://")):
+            raise ValueError("source_url must use http(s)")
+        return value
+
+    @field_validator("raw_text")
+    @classmethod
+    def strip_raw_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
+
+    @model_validator(mode="after")
+    def require_some_input(self) -> "RouteImportRequest":
+        if not self.source_url and not self.raw_text:
+            raise ValueError("source_url or raw_text is required")
+        return self
+
+
+class RouteImportExtractedCandidate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    region: str | None = Field(default=None, max_length=120)
+    province: str | None = Field(default=None, max_length=40)
+    city: str | None = Field(default=None, max_length=40)
+    summary: str | None = Field(default=None, max_length=500)
+    tags: list[str] = Field(default_factory=list)
+    distance_km: float | None = Field(default=None, ge=0, le=500)
+    duration_hours: float | None = Field(default=None, gt=0, le=72)
+    ascent_m: float | None = Field(default=None, ge=0, le=20000)
+    risk_notes: list[str] = Field(default_factory=list)
+
+    @field_validator("tags", "risk_notes", mode="before")
+    @classmethod
+    def normalize_import_list(cls, value: list[str] | str | None) -> list[str]:
+        if value is None:
+            return []
+        items = value.split(",") if isinstance(value, str) else value
+        result: list[str] = []
+        seen: set[str] = set()
+        for item in items:
+            text = str(item).strip()
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            result.append(text)
+        return result
+
+
+class RouteImportCandidateRecord(RouteImportExtractedCandidate):
+    id: int
+    job_id: str
+    source_title: str | None = None
+    source_url: str | None = None
+    source_type: str = "imported-document"
+    matched_route_id: str | None = None
+    matched_route_name: str | None = None
+    match_score: int = Field(default=0, ge=0, le=100)
+    suggested_action: RouteImportAction = "create"
+    status: RouteImportStatus = "pending"
+
+
+class RouteImportJobRecord(BaseModel):
+    id: str
+    source_url: str | None = None
+    title: str | None = None
+    status: str
+    created_at: str
+    warnings: list[str] = Field(default_factory=list)
+    candidates: list[RouteImportCandidateRecord] = Field(default_factory=list)
+
+
+class RouteImportDecision(BaseModel):
+    candidate_id: int
+    action: RouteImportAction
+    target_route_id: str | None = None
+
+
+class RouteImportApplyRequest(BaseModel):
+    decisions: list[RouteImportDecision]
+
+
+class RouteImportApplyResponse(BaseModel):
+    job: RouteImportJobRecord
+    created_count: int = 0
+    merged_count: int = 0
+    ignored_count: int = 0
+    warnings: list[str] = Field(default_factory=list)
 
 
 class HikingGuideRequest(BaseModel):

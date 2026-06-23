@@ -2057,6 +2057,36 @@
         pointer-events: none;
       }
 
+      .discovery-board-head {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        gap: 22px;
+        align-items: flex-start;
+      }
+
+      .knowledge-entry-link {
+        position: relative;
+        z-index: 2;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+        padding: 8px 12px;
+        border: 1px solid rgba(80,104,62,0.28);
+        border-radius: 7px;
+        background: rgba(255,252,244,0.78);
+        color: var(--moss-dark);
+        font-size: 12px;
+        font-weight: 900;
+        text-decoration: none;
+        box-shadow: 0 10px 22px rgba(50,45,30,0.08);
+      }
+
+      .knowledge-entry-link:hover { background: #fffcf4; }
+
       .discovery-kicker {
         display: flex;
         align-items: center;
@@ -2272,6 +2302,307 @@
       .drawer-source { display: block; padding: 10px 0; color: var(--moss-dark); font-size: 13px; font-weight: 800; text-decoration: none; }
       .drawer-source small { display: block; margin-top: 3px; color: var(--muted); font-weight: 400; line-height: 1.5; }
 
+      /* ---- Route Knowledge Manager ---- */
+      .knowledge-board {
+        padding: 22px;
+        display: grid;
+        gap: 16px;
+      }
+
+      .knowledge-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: start;
+      }
+
+      .knowledge-head h2 {
+        margin: 4px 0 6px;
+        color: var(--moss-dark);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 28px;
+      }
+
+      .knowledge-head p {
+        margin: 0;
+        max-width: 720px;
+        color: var(--muted);
+        line-height: 1.65;
+        font-size: 13px;
+      }
+
+      .knowledge-head-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .knowledge-primary,
+      .knowledge-secondary,
+      .knowledge-danger {
+        border-radius: 7px;
+        padding: 9px 12px;
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .knowledge-primary {
+        border: 1px solid var(--moss-dark);
+        background: var(--moss-dark);
+        color: #fff9e8;
+      }
+
+      .knowledge-secondary {
+        border: 1px solid var(--line);
+        background: #fffcf4;
+        color: var(--moss-dark);
+      }
+
+      .knowledge-back-link {
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .knowledge-danger {
+        border: 1px solid rgba(164, 55, 41, 0.42);
+        background: rgba(164, 55, 41, 0.06);
+        color: var(--danger);
+      }
+
+      .knowledge-filters {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) repeat(4, minmax(110px, 0.45fr)) auto;
+        gap: 8px;
+        align-items: end;
+      }
+
+      .knowledge-filters label,
+      .knowledge-form-field label {
+        display: grid;
+        gap: 5px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .knowledge-filters input,
+      .knowledge-filters select,
+      .knowledge-form-field input,
+      .knowledge-form-field select,
+      .knowledge-form-field textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #fffcf4;
+        color: var(--ink);
+        padding: 9px 10px;
+        font-size: 13px;
+      }
+
+      .knowledge-form-field textarea { min-height: 70px; resize: vertical; }
+
+      .knowledge-status {
+        min-height: 18px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .knowledge-status.ok { color: var(--moss); }
+      .knowledge-status.fail { color: var(--danger); }
+
+      .knowledge-table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255,252,244,0.78);
+      }
+
+      .knowledge-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 940px;
+      }
+
+      .knowledge-table th,
+      .knowledge-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(216,207,185,0.7);
+        text-align: left;
+        vertical-align: top;
+        font-size: 12px;
+      }
+
+      .knowledge-table th {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: rgba(223,232,202,0.24);
+      }
+
+      .knowledge-table tr:last-child td { border-bottom: 0; }
+      .knowledge-route-name { color: var(--moss-dark); font-weight: 900; font-size: 14px; }
+      .knowledge-route-sub { margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+      .knowledge-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+      .knowledge-tag { padding: 3px 6px; border-radius: 4px; background: rgba(223,232,202,.42); color: var(--moss-dark); font-size: 10px; font-weight: 800; }
+      .knowledge-pill { display: inline-flex; padding: 4px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 10px; font-weight: 900; }
+      .knowledge-pill.active { border-color: rgba(80,104,62,.28); color: var(--moss-dark); background: rgba(223,232,202,.34); }
+      .knowledge-pill.archived { border-color: rgba(166,83,43,.26); color: var(--clay); background: rgba(244,198,90,.12); }
+      .knowledge-pill.blocked { border-color: rgba(164,55,41,.30); color: var(--danger); background: rgba(164,55,41,.07); }
+      .knowledge-actions { display: flex; flex-wrap: wrap; gap: 6px; min-width: 210px; }
+      .knowledge-actions button { padding: 6px 8px; }
+
+      .knowledge-editor-backdrop { display: none; position: fixed; inset: 0; z-index: 1120; background: rgba(22,33,24,.38); backdrop-filter: blur(3px); }
+      .knowledge-editor-backdrop.show { display: block; }
+      .knowledge-editor-drawer {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: min(760px, 96vw);
+        overflow: auto;
+        padding: 26px;
+        background: var(--paper);
+        box-shadow: -24px 0 70px rgba(22,33,24,.24);
+      }
+
+      .knowledge-editor-title {
+        margin: 26px 0 18px;
+        color: var(--moss-dark);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 28px;
+      }
+
+      .knowledge-form {
+        display: grid;
+        gap: 18px;
+      }
+
+      .knowledge-form-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .knowledge-form-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+      .knowledge-form-section {
+        display: grid;
+        gap: 10px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+      }
+
+      .knowledge-form-section h3 {
+        margin: 0;
+        color: var(--moss-dark);
+        font-size: 14px;
+      }
+
+      .knowledge-source-list { display: grid; gap: 10px; }
+      .knowledge-source-row {
+        display: grid;
+        grid-template-columns: minmax(120px, .75fr) minmax(190px, 1.2fr) minmax(90px, .45fr) minmax(95px, .45fr) auto;
+        gap: 7px;
+        align-items: start;
+      }
+      .knowledge-source-row textarea { grid-column: 1 / -2; min-height: 48px; }
+      .knowledge-source-row .knowledge-danger { padding: 8px 9px; }
+      .knowledge-import-workbench {
+        display: none;
+        gap: 14px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255,252,244,0.72);
+      }
+      .knowledge-import-workbench.show { display: grid; }
+      .knowledge-import-layout {
+        display: grid;
+        grid-template-columns: minmax(280px, 0.82fr) minmax(420px, 1.18fr);
+        gap: 14px;
+        align-items: start;
+      }
+      .knowledge-import-source {
+        display: grid;
+        gap: 10px;
+      }
+      .knowledge-import-review {
+        display: grid;
+        gap: 10px;
+        max-height: min(72vh, 760px);
+        overflow: auto;
+        padding-right: 3px;
+      }
+      .knowledge-import-row {
+        display: grid;
+        grid-template-columns: minmax(180px, 0.8fr) minmax(250px, 1.2fr) minmax(118px, .45fr);
+        gap: 8px;
+        align-items: start;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255,252,244,0.82);
+      }
+      .knowledge-import-row.applied { opacity: 0.68; }
+      .knowledge-import-row.ignored { opacity: 0.54; }
+      .knowledge-import-row select,
+      .knowledge-import-row input {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #fffcf4;
+        padding: 8px 9px;
+        color: var(--ink);
+        font-size: 12px;
+      }
+      .knowledge-import-warnings {
+        display: grid;
+        gap: 5px;
+        color: var(--clay);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .knowledge-compare-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .knowledge-compare-card {
+        min-width: 0;
+        padding: 9px;
+        border: 1px solid rgba(216,207,185,0.8);
+        border-radius: 7px;
+        background: rgba(247,243,232,0.72);
+      }
+      .knowledge-compare-card strong {
+        display: block;
+        color: var(--moss-dark);
+        font-size: 13px;
+      }
+      .knowledge-compare-card p {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.5;
+      }
+      .knowledge-form-actions {
+        position: sticky;
+        bottom: -26px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 14px 0 0;
+        background: linear-gradient(180deg, rgba(247,243,232,0), var(--paper) 30%);
+      }
+
       /* ---- Back Button ---- */
       .btn-back {
         display: inline-flex;
@@ -2347,10 +2678,21 @@
         .route-candidate-grid { grid-template-columns: 1fr; }
         .search-workbench { grid-template-columns:1fr; }
         .discovery-board { background: rgba(255,250,240,.92); }
+        .knowledge-head { display: grid; }
+        .knowledge-head-actions { justify-content: start; }
+        .knowledge-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .knowledge-form-grid,
+        .knowledge-form-grid.two,
+        .knowledge-source-row,
+        .knowledge-import-layout,
+        .knowledge-compare-grid,
+        .knowledge-import-row { grid-template-columns: 1fr; }
+        .knowledge-source-row textarea { grid-column: auto; }
       }
 
       @media (max-width: 620px) {
         .module-tab { padding: 11px 14px; font-size: 13px; }
+        .discovery-board-head { display: grid; }
         .discovery-compose-foot, .clarify-card { display: grid; grid-template-columns: 1fr; align-items: stretch; }
         .clarify-options { justify-content: flex-start; }
         .selected-route-notice.show { display: grid; }
@@ -2426,9 +2768,14 @@
       <!-- ========== Module 2: Evidence-backed Route Discovery ========== -->
       <div id="module-plan" class="module-content active">
         <div class="panel discovery-board">
-          <div class="discovery-kicker">Route discovery · 全国路线发现</div>
-          <h2>先说你想走怎样的山路。</h2>
-          <p class="discovery-lead">系统先检索重点省份路线库，不足时再联网补充；只推荐能够找到公开来源的路线名称。选中后，请上传对应轨迹，再进行距离、海拔、天气和风险分析。</p>
+          <div class="discovery-board-head">
+            <div>
+              <div class="discovery-kicker">Route discovery · 全国路线发现</div>
+              <h2>先说你想走怎样的山路。</h2>
+              <p class="discovery-lead">系统先检索重点省份路线库，不足时再联网补充；只推荐能够找到公开来源的路线名称。选中后，请上传对应轨迹，再进行距离、海拔、天气和风险分析。</p>
+            </div>
+            <a class="knowledge-entry-link" href="/route-knowledge-manager">路线库管理</a>
+          </div>
           <div class="discovery-compose">
             <textarea id="route-discovery-query" maxlength="1000" placeholder="例如：杭州周边，周末一天，新手，想看溪流和竹林，不想爬升太大，公共交通可达。"></textarea>
             <div class="discovery-compose-foot">
@@ -2445,11 +2792,50 @@
         </div>
         <div id="route-discovery-results" class="discovery-results" aria-live="polite"></div>
       </div>
+
+      <!-- ========== Module 3: Route Knowledge Management ========== -->
+      <div id="module-knowledge" class="module-content">
+        <div class="panel knowledge-board">
+          <div class="knowledge-head">
+            <div>
+              <div class="discovery-kicker">Route knowledge · 本地知识库</div>
+              <h2>管理发现路线的候选知识卡。</h2>
+              <p>这里只维护路线名称、地区、标签、来源和核验状态；精确轨迹、天气和交通仍由上传 KML 与实时工具处理。</p>
+            </div>
+            <div class="knowledge-head-actions">
+              <button class="knowledge-secondary" id="route-knowledge-import" type="button">导入资料</button>
+              <button class="knowledge-primary" id="route-knowledge-create" type="button">新增路线</button>
+              <a class="knowledge-secondary knowledge-back-link" href="/">返回发现路线</a>
+            </div>
+          </div>
+          <div class="knowledge-filters">
+            <label>关键词<input id="route-knowledge-query" type="search" placeholder="路线名、别名、标签、地区" /></label>
+            <label>状态
+              <select id="route-knowledge-status-filter">
+                <option value="">全部</option>
+                <option value="active">active</option>
+                <option value="archived">archived</option>
+                <option value="blocked">blocked</option>
+              </select>
+            </label>
+            <label>省份<input id="route-knowledge-province-filter" type="text" placeholder="浙江" /></label>
+            <label>城市<input id="route-knowledge-city-filter" type="text" placeholder="杭州" /></label>
+            <label>来源类型<input id="route-knowledge-source-filter" type="text" placeholder="official" /></label>
+            <button class="knowledge-secondary" id="route-knowledge-refresh" type="button">刷新</button>
+          </div>
+          <div class="knowledge-status" id="route-knowledge-status" role="status"></div>
+          <section id="route-import-workbench" class="knowledge-import-workbench" aria-label="资料导入工作台"></section>
+          <div id="route-knowledge-list" class="knowledge-table-wrap"></div>
+        </div>
+      </div>
       </main>
     </div>
 
     <div id="route-detail-backdrop" class="route-detail-backdrop" role="dialog" aria-modal="true" aria-label="路线候选详情">
       <aside id="route-detail-drawer" class="route-detail-drawer"></aside>
+    </div>
+    <div id="route-knowledge-editor-backdrop" class="knowledge-editor-backdrop" role="dialog" aria-modal="true" aria-label="路线知识库编辑">
+      <aside id="route-knowledge-editor" class="knowledge-editor-drawer"></aside>
     </div>
 
     <script>
@@ -2475,6 +2861,19 @@
       const routeDetailBackdropEl = document.querySelector("#route-detail-backdrop");
       const routeDetailDrawerEl = document.querySelector("#route-detail-drawer");
       const selectedRouteNoticeEl = document.querySelector("#selected-route-notice");
+      const routeKnowledgeCreateBtn = document.querySelector("#route-knowledge-create");
+      const routeKnowledgeImportBtn = document.querySelector("#route-knowledge-import");
+      const routeKnowledgeRefreshBtn = document.querySelector("#route-knowledge-refresh");
+      const routeKnowledgeQueryEl = document.querySelector("#route-knowledge-query");
+      const routeKnowledgeStatusFilterEl = document.querySelector("#route-knowledge-status-filter");
+      const routeKnowledgeProvinceFilterEl = document.querySelector("#route-knowledge-province-filter");
+      const routeKnowledgeCityFilterEl = document.querySelector("#route-knowledge-city-filter");
+      const routeKnowledgeSourceFilterEl = document.querySelector("#route-knowledge-source-filter");
+      const routeKnowledgeStatusEl = document.querySelector("#route-knowledge-status");
+      const routeKnowledgeListEl = document.querySelector("#route-knowledge-list");
+      const routeImportWorkbenchEl = document.querySelector("#route-import-workbench");
+      const routeKnowledgeEditorBackdropEl = document.querySelector("#route-knowledge-editor-backdrop");
+      const routeKnowledgeEditorEl = document.querySelector("#route-knowledge-editor");
 
       // ---- AMap state ----
       let amapInstance = null;
@@ -2492,6 +2891,10 @@
       let routeDiscoveryClarifications = {};
       let routeSearchEvents = [];
       let selectedRouteDiscoveryCandidate = null;
+      let routeKnowledgeLoaded = false;
+      let routeKnowledgeRecords = [];
+      let routeImportJob = null;
+      let routeImportMatches = {};
       const HISTORY_KEY = "trailer.guideHistory.v1";
       const HISTORY_COLLAPSED_KEY = "trailer.historyCollapsed.v1";
       const ROUTE_COLORS = ["#50683e", "#a6532b", "#2e6b9e", "#7b4fa6", "#c47a1e"];
@@ -2507,6 +2910,7 @@
         tab.addEventListener("click", () => {
           if (tab.classList.contains("disabled")) return;
           activateModule(tab.dataset.module);
+          if (tab.dataset.module === "knowledge" && !routeKnowledgeLoaded) loadRouteKnowledge();
         });
       });
 
@@ -3123,6 +3527,607 @@
           .replaceAll("'", "&#039;");
       }
 
+      // ---- Route Knowledge Management ----
+      function setRouteKnowledgeStatus(message, kind = '') {
+        if (!routeKnowledgeStatusEl) return;
+        routeKnowledgeStatusEl.textContent = message || '';
+        routeKnowledgeStatusEl.className = `knowledge-status${kind ? ' ' + kind : ''}`;
+      }
+
+      function routeKnowledgeParams() {
+        const params = new URLSearchParams({ limit: '80' });
+        [
+          ['query', routeKnowledgeQueryEl?.value],
+          ['status', routeKnowledgeStatusFilterEl?.value],
+          ['province', routeKnowledgeProvinceFilterEl?.value],
+          ['city', routeKnowledgeCityFilterEl?.value],
+          ['source_type', routeKnowledgeSourceFilterEl?.value],
+        ].forEach(([key, value]) => {
+          const clean = String(value || '').trim();
+          if (clean) params.set(key, clean);
+        });
+        return params;
+      }
+
+      async function loadRouteKnowledge() {
+        if (!routeKnowledgeListEl) return;
+        routeKnowledgeLoaded = true;
+        setRouteKnowledgeStatus('正在读取路线知识库...');
+        routeKnowledgeListEl.innerHTML = '<div class="discovery-status">正在加载路线知识条目。</div>';
+        try {
+          const response = await fetch(`/api/v1/route-knowledge?${routeKnowledgeParams().toString()}`);
+          if (!response.ok) {
+            let detail = response.statusText;
+            try { detail = (await response.json()).detail || detail; } catch (_) {}
+            throw new Error(detail);
+          }
+          const data = await response.json();
+          routeKnowledgeRecords = data.records || [];
+          renderRouteKnowledgeTable(data);
+          setRouteKnowledgeStatus(`共 ${data.total || 0} 条，当前显示 ${routeKnowledgeRecords.length} 条。`, 'ok');
+        } catch (error) {
+          routeKnowledgeListEl.innerHTML = `<div class="discovery-status"><strong>路线知识库读取失败。</strong><br>${escapeHtml(error.message)}</div>`;
+          setRouteKnowledgeStatus(error.message, 'fail');
+        }
+      }
+
+      function renderRouteKnowledgeTable(data) {
+        const records = data.records || [];
+        if (!records.length) {
+          routeKnowledgeListEl.innerHTML = '<div class="discovery-status">没有找到匹配的路线知识条目。</div>';
+          return;
+        }
+        routeKnowledgeListEl.innerHTML = `
+          <table class="knowledge-table">
+            <thead>
+              <tr>
+                <th>路线</th>
+                <th>地区</th>
+                <th>标签</th>
+                <th>状态</th>
+                <th>来源</th>
+                <th>核验</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>${records.map(renderRouteKnowledgeRow).join('')}</tbody>
+          </table>`;
+        bindRouteKnowledgeTableEvents();
+      }
+
+      function renderRouteKnowledgeRow(record) {
+        const tags = (record.tags || []).slice(0, 5).map(tag => `<span class="knowledge-tag">${escapeHtml(tag)}</span>`).join('');
+        const metrics = [
+          record.distance_km != null ? `${Number(record.distance_km).toFixed(1)} km` : '',
+          record.duration_hours != null ? `${Number(record.duration_hours).toFixed(1)} h` : '',
+          record.ascent_m != null ? `${Number(record.ascent_m).toFixed(0)} m` : '',
+        ].filter(Boolean).join(' · ');
+        const status = record.status || 'active';
+        const risk = record.risk_level && record.risk_level !== 'normal'
+          ? `<span class="knowledge-pill ${escapeHtml(record.risk_level === 'blocked' ? 'blocked' : 'archived')}">${escapeHtml(record.risk_level)}</span>` : '';
+        const restore = status === 'archived'
+          ? `<button class="knowledge-secondary" type="button" data-knowledge-restore="${escapeHtml(record.id)}">恢复</button>` : '';
+        const archive = status === 'active'
+          ? `<button class="knowledge-secondary" type="button" data-knowledge-archive="${escapeHtml(record.id)}">归档</button>` : '';
+        return `<tr>
+          <td><div class="knowledge-route-name">${escapeHtml(record.name)}</div><div class="knowledge-route-sub">${escapeHtml(record.id)}${metrics ? ' · ' + escapeHtml(metrics) : ''}</div></td>
+          <td>${escapeHtml(record.province)} / ${escapeHtml(record.city)}<div class="knowledge-route-sub">${escapeHtml(record.region || '')}</div></td>
+          <td><div class="knowledge-tags">${tags || '<span class="knowledge-route-sub">无标签</span>'}</div></td>
+          <td><span class="knowledge-pill ${escapeHtml(status)}">${escapeHtml(status)}</span>${risk}<div class="knowledge-route-sub">rank ${Number(record.editorial_rank || 0)}</div></td>
+          <td>${Number(record.source_count || 0)} 个<div class="knowledge-route-sub">${escapeHtml(record.official_status || 'unverified')}</div></td>
+          <td>${escapeHtml(record.last_verified_at || '未记录')}</td>
+          <td><div class="knowledge-actions">
+            <button class="knowledge-secondary" type="button" data-knowledge-edit="${escapeHtml(record.id)}">编辑</button>
+            ${archive}${restore}
+            <button class="knowledge-danger" type="button" data-knowledge-delete="${escapeHtml(record.id)}">永久删除</button>
+          </div></td>
+        </tr>`;
+      }
+
+      function bindRouteKnowledgeTableEvents() {
+        routeKnowledgeListEl.querySelectorAll('[data-knowledge-edit]').forEach(button => {
+          button.addEventListener('click', () => openRouteKnowledgeEditor(button.dataset.knowledgeEdit));
+        });
+        routeKnowledgeListEl.querySelectorAll('[data-knowledge-archive]').forEach(button => {
+          button.addEventListener('click', () => archiveRouteKnowledge(button.dataset.knowledgeArchive));
+        });
+        routeKnowledgeListEl.querySelectorAll('[data-knowledge-restore]').forEach(button => {
+          button.addEventListener('click', () => restoreRouteKnowledge(button.dataset.knowledgeRestore));
+        });
+        routeKnowledgeListEl.querySelectorAll('[data-knowledge-delete]').forEach(button => {
+          button.addEventListener('click', () => hardDeleteRouteKnowledge(button.dataset.knowledgeDelete));
+        });
+      }
+
+      function openRouteImportWorkbench() {
+        if (!routeImportWorkbenchEl) return;
+        if (!routeImportWorkbenchEl.innerHTML.trim()) renderRouteImportWorkbench();
+        routeImportWorkbenchEl.classList.add('show');
+        routeImportWorkbenchEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        routeImportWorkbenchEl.querySelector('#route-import-url')?.focus();
+      }
+
+      function renderRouteImportWorkbench() {
+        routeImportWorkbenchEl.innerHTML = `
+          <div class="knowledge-head">
+            <div>
+              <div class="discovery-kicker">Import review</div>
+              <h2 class="knowledge-editor-title" style="margin:8px 0 6px">资料导入工作台</h2>
+              <p>抽取结果会停留在这里，逐条确认新增、合并或忽略；疑似重复会展示旧路线摘要用于人工比对。</p>
+            </div>
+            <button class="knowledge-secondary" type="button" id="route-import-hide">收起导入区</button>
+          </div>
+          <div class="knowledge-import-layout">
+            <form class="knowledge-form knowledge-import-source" id="route-import-form">
+              <section class="knowledge-form-section">
+                <h3>资料来源</h3>
+                <label class="knowledge-form-field">URL<input id="route-import-url" type="url" maxlength="1000" placeholder="https://..." /></label>
+                <label class="knowledge-form-field">正文<textarea id="route-import-text" maxlength="30000" placeholder="粘贴路线榜单、攻略摘录或资料正文"></textarea></label>
+                <div class="knowledge-status" id="route-import-status"></div>
+              </section>
+              <div class="knowledge-form-actions">
+                <button class="knowledge-secondary" type="submit" id="route-import-submit">抽取候选</button>
+                <button class="knowledge-primary" type="button" id="route-import-apply" style="display:none">应用审核</button>
+              </div>
+            </form>
+            <section class="knowledge-form-section" id="route-import-review-section">
+              <h3>候选审核</h3>
+              <div id="route-import-review" class="knowledge-import-review">
+                <div class="discovery-status">粘贴 URL 或正文后，候选路线会显示在这里。</div>
+              </div>
+            </section>
+          </div>`;
+        routeImportWorkbenchEl.querySelector('#route-import-hide').addEventListener('click', () => {
+          routeImportWorkbenchEl.classList.remove('show');
+        });
+        routeImportWorkbenchEl.querySelector('#route-import-form').addEventListener('submit', submitRouteImportJob);
+        routeImportWorkbenchEl.querySelector('#route-import-apply').addEventListener('click', applyRouteImportJob);
+      }
+
+      async function submitRouteImportJob(event) {
+        event.preventDefault();
+        const submit = routeImportWorkbenchEl.querySelector('#route-import-submit');
+        const payload = {
+          source_url: optionalImportValue('#route-import-url'),
+          raw_text: optionalImportValue('#route-import-text'),
+        };
+        if (!payload.source_url && !payload.raw_text) {
+          setRouteImportStatus('请粘贴 URL 或正文。', 'fail');
+          return;
+        }
+        submit.disabled = true;
+        submit.textContent = '抽取中...';
+        setRouteImportStatus('正在创建导入草稿...');
+        try {
+          const response = await fetch('/api/v1/route-knowledge/import-jobs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) throw new Error(await readApiError(response));
+          routeImportJob = await response.json();
+          routeImportMatches = {};
+          renderRouteImportReview(routeImportJob);
+          setRouteKnowledgeStatus(`导入任务 ${routeImportJob.id} 已生成 ${routeImportJob.candidates.length} 个候选。`, 'ok');
+          setRouteImportStatus(routeImportJob.candidates.length ? '请逐条确认新增、合并或忽略。' : '没有识别出候选，可补充正文后重试。', routeImportJob.candidates.length ? 'ok' : 'fail');
+        } catch (error) {
+          setRouteImportStatus(`抽取失败：${error.message}`, 'fail');
+        } finally {
+          submit.disabled = false;
+          submit.textContent = '重新抽取';
+        }
+      }
+
+      function renderRouteImportReview(job) {
+        const review = routeImportWorkbenchEl.querySelector('#route-import-review');
+        const apply = routeImportWorkbenchEl.querySelector('#route-import-apply');
+        apply.style.display = job.candidates && job.candidates.length ? 'inline-flex' : 'none';
+        const jobMeta = `<div class="knowledge-route-sub">任务 ${escapeHtml(job.id)} · ${escapeHtml(job.status || 'ready')} · ${job.candidates.length} 个候选</div>`;
+        const warnings = (job.warnings || []).length
+          ? `<div class="knowledge-import-warnings">${job.warnings.map(item => `<div>△ ${escapeHtml(item)}</div>`).join('')}</div>` : '';
+        const rows = (job.candidates || []).map(renderRouteImportCandidate).join('');
+        review.innerHTML = `${jobMeta}${warnings}${rows || '<div class="discovery-status">没有待审核候选。</div>'}`;
+        review.querySelectorAll('[data-import-action]').forEach(select => {
+          select.addEventListener('change', () => updateImportMergeInput(select.closest('.knowledge-import-row')));
+          updateImportMergeInput(select.closest('.knowledge-import-row'));
+        });
+        loadImportMatchedRecords(job);
+      }
+
+      function renderRouteImportCandidate(candidate) {
+        const tags = (candidate.tags || []).slice(0, 4).map(tag => `<span class="knowledge-tag">${escapeHtml(tag)}</span>`).join('');
+        const metrics = [
+          candidate.distance_km != null ? `${Number(candidate.distance_km).toFixed(1)} km` : '',
+          candidate.duration_hours != null ? `${Number(candidate.duration_hours).toFixed(1)} h` : '',
+          candidate.ascent_m != null ? `${Number(candidate.ascent_m).toFixed(0)} m` : '',
+        ].filter(Boolean).join(' · ');
+        const matched = candidate.matched_route_id
+          ? `${candidate.matched_route_name || candidate.matched_route_id} · ${candidate.match_score}`
+          : '未匹配';
+        const action = candidate.suggested_action || 'create';
+        const matchedRecord = candidate.matched_route_id ? routeImportMatches[candidate.matched_route_id] : null;
+        return `<div class="knowledge-import-row ${escapeHtml(candidate.status || '')}" data-candidate-id="${Number(candidate.id)}">
+          <div>
+            <div class="knowledge-route-name">${escapeHtml(candidate.name)}</div>
+            <div class="knowledge-route-sub">${escapeHtml(candidate.region || [candidate.province, candidate.city].filter(Boolean).join(' / ') || '地区待核验')}${metrics ? ' · ' + escapeHtml(metrics) : ''}</div>
+            <div class="knowledge-tags">${tags || '<span class="knowledge-route-sub">无标签</span>'}</div>
+            <div class="knowledge-route-sub">${escapeHtml(candidate.summary || candidate.source_title || '待补充')}</div>
+          </div>
+          <div>
+            <div class="knowledge-route-sub">候选 / 旧路线比对</div>
+            <div class="knowledge-compare-grid">
+              <div class="knowledge-compare-card">
+                <strong>${escapeHtml(candidate.name)}</strong>
+                <p>${escapeHtml((candidate.tags || []).join('、') || '无标签')}<br>${escapeHtml(candidate.risk_notes?.[0] || '暂无风险提示')}</p>
+              </div>
+              <div class="knowledge-compare-card">
+                <strong>${escapeHtml(matchedRecord?.name || matched)}</strong>
+                <p>${escapeHtml(matchedRecord ? `${matchedRecord.region || ''} · ${(matchedRecord.tags || []).slice(0,4).join('、') || '无标签'}` : (candidate.matched_route_id ? '正在读取旧路线详情...' : '没有疑似重复对象'))}<br>${escapeHtml(matchedRecord?.summary || matchedRecord?.risk_notes?.[0] || '')}</p>
+              </div>
+            </div>
+            <input data-import-target value="${escapeHtml(candidate.matched_route_id || '')}" placeholder="合并目标 route id" />
+          </div>
+          <div>
+            <select data-import-action>
+              ${['create','merge','ignore','needs_review'].map(item => `<option value="${item}"${action === item ? ' selected' : ''}>${item}</option>`).join('')}
+            </select>
+          </div>
+        </div>`;
+      }
+
+      async function loadImportMatchedRecords(job) {
+        const ids = [...new Set((job.candidates || []).map(item => item.matched_route_id).filter(Boolean))];
+        const missing = ids.filter(id => !routeImportMatches[id]);
+        if (!missing.length) return;
+        await Promise.all(missing.map(async id => {
+          try {
+            const response = await fetch(`/api/v1/route-knowledge/${encodeURIComponent(id)}`);
+            if (!response.ok) return;
+            routeImportMatches[id] = await response.json();
+          } catch (_) {}
+        }));
+        if (routeImportJob?.id === job.id) renderRouteImportReview(routeImportJob);
+      }
+
+      function updateImportMergeInput(row) {
+        if (!row) return;
+        const action = row.querySelector('[data-import-action]').value;
+        const target = row.querySelector('[data-import-target]');
+        target.disabled = action !== 'merge';
+      }
+
+      async function applyRouteImportJob() {
+        if (!routeImportJob) return;
+        const apply = routeImportWorkbenchEl.querySelector('#route-import-apply');
+        const decisions = Array.from(routeImportWorkbenchEl.querySelectorAll('.knowledge-import-row')).map(row => {
+          const action = row.querySelector('[data-import-action]').value;
+          const target = row.querySelector('[data-import-target]').value.trim();
+          return {
+            candidate_id: Number(row.dataset.candidateId),
+            action,
+            target_route_id: action === 'merge' && target ? target : null,
+          };
+        });
+        apply.disabled = true;
+        apply.textContent = '应用中...';
+        try {
+          const response = await fetch(`/api/v1/route-knowledge/import-jobs/${encodeURIComponent(routeImportJob.id)}/apply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ decisions }),
+          });
+          if (!response.ok) throw new Error(await readApiError(response));
+          const result = await response.json();
+          routeImportJob = result.job;
+          renderRouteImportReview(routeImportJob);
+          await loadRouteKnowledge();
+          setRouteKnowledgeStatus(`导入已应用：新增 ${result.created_count}，合并 ${result.merged_count}，忽略 ${result.ignored_count}。`, 'ok');
+          setRouteImportStatus((result.warnings || []).length ? result.warnings.join('；') : '审核动作已应用。', (result.warnings || []).length ? 'fail' : 'ok');
+        } catch (error) {
+          setRouteImportStatus(`应用失败：${error.message}`, 'fail');
+        } finally {
+          apply.disabled = false;
+          apply.textContent = '应用审核';
+        }
+      }
+
+      function setRouteImportStatus(message, kind = '') {
+        const status = routeImportWorkbenchEl.querySelector('#route-import-status');
+        if (!status) return;
+        status.textContent = message || '';
+        status.className = `knowledge-status${kind ? ' ' + kind : ''}`;
+      }
+
+      function optionalImportValue(selector) {
+        const value = routeImportWorkbenchEl.querySelector(selector)?.value.trim();
+        return value || null;
+      }
+
+      async function readApiError(response) {
+        let detail = response.statusText;
+        try { detail = (await response.json()).detail || detail; } catch (_) {}
+        return Array.isArray(detail) ? detail.map(item => item.msg || item).join('；') : detail;
+      }
+
+      function emptyRouteKnowledgeRecord() {
+        return {
+          name: '', province: '', city: '', summary: '', difficulty: '',
+          distance_km: null, duration_hours: null, ascent_m: null, camping: null,
+          seasons: [], aliases: [], tags: [], transport_notes: [], editorial_rank: 0,
+          official_status: 'unverified', risk_level: 'normal', risk_notes: [],
+          status: 'active', last_verified_at: '', sources: []
+        };
+      }
+
+      async function openRouteKnowledgeEditor(id = null) {
+        let record = emptyRouteKnowledgeRecord();
+        if (id) {
+          setRouteKnowledgeStatus('正在读取条目详情...');
+          const response = await fetch(`/api/v1/route-knowledge/${encodeURIComponent(id)}`);
+          if (!response.ok) {
+            setRouteKnowledgeStatus('条目不存在或读取失败。', 'fail');
+            return;
+          }
+          record = await response.json();
+        }
+        renderRouteKnowledgeEditor(record, Boolean(id));
+      }
+
+      function renderRouteKnowledgeEditor(record, editing) {
+        const sources = record.sources && record.sources.length ? record.sources : [{ title: '', url: '', source_type: 'web', published_at: '', summary: '' }];
+        routeKnowledgeEditorEl.innerHTML = `
+          <button class="drawer-close" type="button" aria-label="关闭编辑器">×</button>
+          <div class="discovery-kicker">Knowledge editor</div>
+          <h2 class="knowledge-editor-title">${editing ? '编辑路线知识卡' : '新增路线知识卡'}</h2>
+          <form class="knowledge-form" id="route-knowledge-form" data-record-id="${escapeHtml(record.id || '')}">
+            ${editing ? `<input type="hidden" id="knowledge-record-id" value="${escapeHtml(record.id)}" />` : `<div class="knowledge-form-field"><label>自定义 ID（可选）<input id="knowledge-record-id" maxlength="80" placeholder="留空自动生成" /></label></div>`}
+            <section class="knowledge-form-section">
+              <h3>核心信息</h3>
+              <div class="knowledge-form-grid">
+                <label class="knowledge-form-field">路线名<input id="knowledge-name" required maxlength="120" value="${escapeHtml(record.name)}" /></label>
+                <label class="knowledge-form-field">省份<input id="knowledge-province" required maxlength="40" value="${escapeHtml(record.province)}" /></label>
+                <label class="knowledge-form-field">城市<input id="knowledge-city" required maxlength="40" value="${escapeHtml(record.city)}" /></label>
+                <label class="knowledge-form-field">难度<input id="knowledge-difficulty" maxlength="40" value="${escapeHtml(record.difficulty || '')}" placeholder="新手 / 进阶" /></label>
+                <label class="knowledge-form-field">距离 km<input id="knowledge-distance" type="number" min="0" max="500" step="0.1" value="${record.distance_km ?? ''}" /></label>
+                <label class="knowledge-form-field">耗时 h<input id="knowledge-duration" type="number" min="0" max="72" step="0.1" value="${record.duration_hours ?? ''}" /></label>
+                <label class="knowledge-form-field">爬升 m<input id="knowledge-ascent" type="number" min="0" max="20000" step="1" value="${record.ascent_m ?? ''}" /></label>
+                <label class="knowledge-form-field">露营
+                  <select id="knowledge-camping">
+                    <option value=""${record.camping == null ? ' selected' : ''}>未知</option>
+                    <option value="true"${record.camping === true ? ' selected' : ''}>允许/常见</option>
+                    <option value="false"${record.camping === false ? ' selected' : ''}>不建议</option>
+                  </select>
+                </label>
+                <label class="knowledge-form-field">最近核验<input id="knowledge-last-verified" maxlength="40" placeholder="YYYY-MM-DD" value="${escapeHtml(record.last_verified_at || '')}" /></label>
+              </div>
+              <label class="knowledge-form-field">摘要<textarea id="knowledge-summary" maxlength="500">${escapeHtml(record.summary || '')}</textarea></label>
+            </section>
+            <section class="knowledge-form-section">
+              <h3>检索与治理</h3>
+              <div class="knowledge-form-grid two">
+                <label class="knowledge-form-field">别名<textarea id="knowledge-aliases">${escapeHtml(listToLines(record.aliases))}</textarea></label>
+                <label class="knowledge-form-field">标签<textarea id="knowledge-tags">${escapeHtml(listToLines(record.tags))}</textarea></label>
+                <label class="knowledge-form-field">季节<textarea id="knowledge-seasons">${escapeHtml(listToLines(record.seasons))}</textarea></label>
+                <label class="knowledge-form-field">交通备注<textarea id="knowledge-transport">${escapeHtml(listToLines(record.transport_notes))}</textarea></label>
+              </div>
+              <div class="knowledge-form-grid">
+                <label class="knowledge-form-field">编辑排序
+                  <select id="knowledge-rank">${[0,1,2,3].map(rank => `<option value="${rank}"${Number(record.editorial_rank || 0) === rank ? ' selected' : ''}>${rank}</option>`).join('')}</select>
+                </label>
+                <label class="knowledge-form-field">官方状态<input id="knowledge-official-status" maxlength="60" value="${escapeHtml(record.official_status || 'unverified')}" /></label>
+                <label class="knowledge-form-field">风险等级<input id="knowledge-risk-level" maxlength="40" value="${escapeHtml(record.risk_level || 'normal')}" /></label>
+                <label class="knowledge-form-field">条目状态
+                  <select id="knowledge-status-value">
+                    ${['active','archived','blocked'].map(status => `<option value="${status}"${(record.status || 'active') === status ? ' selected' : ''}>${status}</option>`).join('')}
+                  </select>
+                </label>
+              </div>
+              <label class="knowledge-form-field">风险提示<textarea id="knowledge-risk-notes">${escapeHtml(listToLines(record.risk_notes))}</textarea></label>
+            </section>
+            <section class="knowledge-form-section">
+              <h3>来源</h3>
+              <div class="knowledge-source-list" id="knowledge-source-list">${sources.map(renderKnowledgeSourceRow).join('')}</div>
+              <button class="knowledge-secondary" id="knowledge-add-source" type="button">添加来源</button>
+            </section>
+            <div class="knowledge-form-actions">
+              <button class="knowledge-secondary" type="button" id="knowledge-cancel">取消</button>
+              <button class="knowledge-primary" type="submit">${editing ? '保存修改' : '创建条目'}</button>
+            </div>
+          </form>`;
+        routeKnowledgeEditorBackdropEl.classList.add('show');
+        routeKnowledgeEditorEl.querySelector('.drawer-close').addEventListener('click', closeRouteKnowledgeEditor);
+        routeKnowledgeEditorEl.querySelector('#knowledge-cancel').addEventListener('click', closeRouteKnowledgeEditor);
+        routeKnowledgeEditorEl.querySelector('#knowledge-add-source').addEventListener('click', addKnowledgeSourceRow);
+        bindKnowledgeSourceRemoveButtons();
+        routeKnowledgeEditorEl.querySelector('#route-knowledge-form').addEventListener('submit', saveRouteKnowledgeForm);
+        routeKnowledgeEditorEl.querySelector('#knowledge-name').focus();
+      }
+
+      function renderKnowledgeSourceRow(source = {}) {
+        return `<div class="knowledge-source-row">
+          <input data-source-title value="${escapeHtml(source.title || '')}" placeholder="来源标题" />
+          <input data-source-url value="${escapeHtml(source.url || '')}" placeholder="https://..." />
+          <input data-source-type value="${escapeHtml(source.source_type || 'web')}" placeholder="类型" />
+          <input data-source-published value="${escapeHtml(source.published_at || '')}" placeholder="发布日期" />
+          <button class="knowledge-danger" type="button" data-remove-source>移除</button>
+          <textarea data-source-summary placeholder="摘要或引用说明">${escapeHtml(source.summary || '')}</textarea>
+        </div>`;
+      }
+
+      function addKnowledgeSourceRow() {
+        routeKnowledgeEditorEl.querySelector('#knowledge-source-list').insertAdjacentHTML('beforeend', renderKnowledgeSourceRow());
+        bindKnowledgeSourceRemoveButtons();
+      }
+
+      function bindKnowledgeSourceRemoveButtons() {
+        routeKnowledgeEditorEl.querySelectorAll('[data-remove-source]').forEach(button => {
+          button.onclick = () => {
+            const rows = routeKnowledgeEditorEl.querySelectorAll('.knowledge-source-row');
+            if (rows.length <= 1) {
+              button.closest('.knowledge-source-row').querySelectorAll('input, textarea').forEach(input => { input.value = ''; });
+              return;
+            }
+            button.closest('.knowledge-source-row').remove();
+          };
+        });
+      }
+
+      async function saveRouteKnowledgeForm(event) {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const id = form.dataset.recordId;
+        const payload = collectRouteKnowledgePayload(Boolean(id));
+        const submit = form.querySelector('button[type="submit"]');
+        submit.disabled = true;
+        submit.textContent = '保存中...';
+        try {
+          const response = await fetch(id ? `/api/v1/route-knowledge/${encodeURIComponent(id)}` : '/api/v1/route-knowledge', {
+            method: id ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            let detail = response.statusText;
+            try { detail = (await response.json()).detail || detail; } catch (_) {}
+            throw new Error(Array.isArray(detail) ? detail.map(item => item.msg).join('；') : detail);
+          }
+          closeRouteKnowledgeEditor();
+          await loadRouteKnowledge();
+          setRouteKnowledgeStatus(id ? '路线知识卡已保存。' : '路线知识卡已创建。', 'ok');
+        } catch (error) {
+          setRouteKnowledgeStatus(`保存失败：${error.message}`, 'fail');
+        } finally {
+          submit.disabled = false;
+          submit.textContent = id ? '保存修改' : '创建条目';
+        }
+      }
+
+      function collectRouteKnowledgePayload(editing) {
+        const campingValue = document.querySelector('#knowledge-camping').value;
+        const payload = {
+          name: document.querySelector('#knowledge-name').value.trim(),
+          province: document.querySelector('#knowledge-province').value.trim(),
+          city: document.querySelector('#knowledge-city').value.trim(),
+          summary: optionalValue('#knowledge-summary'),
+          difficulty: optionalValue('#knowledge-difficulty'),
+          distance_km: numberOrNull('#knowledge-distance'),
+          duration_hours: numberOrNull('#knowledge-duration'),
+          ascent_m: numberOrNull('#knowledge-ascent'),
+          camping: campingValue === '' ? null : campingValue === 'true',
+          seasons: linesToList('#knowledge-seasons'),
+          aliases: linesToList('#knowledge-aliases'),
+          tags: linesToList('#knowledge-tags'),
+          transport_notes: linesToList('#knowledge-transport'),
+          editorial_rank: Number(document.querySelector('#knowledge-rank').value || 0),
+          official_status: document.querySelector('#knowledge-official-status').value.trim() || 'unverified',
+          risk_level: document.querySelector('#knowledge-risk-level').value.trim() || 'normal',
+          risk_notes: linesToList('#knowledge-risk-notes'),
+          status: document.querySelector('#knowledge-status-value').value,
+          last_verified_at: optionalValue('#knowledge-last-verified'),
+          sources: collectKnowledgeSources(),
+        };
+        const customId = document.querySelector('#knowledge-record-id')?.value.trim();
+        if (!editing && customId) payload.id = customId;
+        return payload;
+      }
+
+      function collectKnowledgeSources() {
+        return Array.from(routeKnowledgeEditorEl.querySelectorAll('.knowledge-source-row')).flatMap(row => {
+          const title = row.querySelector('[data-source-title]').value.trim();
+          const url = row.querySelector('[data-source-url]').value.trim();
+          const sourceType = row.querySelector('[data-source-type]').value.trim() || 'web';
+          if (!title && !url) return [];
+          return [{
+            title,
+            url,
+            source_type: sourceType,
+            published_at: row.querySelector('[data-source-published]').value.trim() || null,
+            summary: row.querySelector('[data-source-summary]').value.trim() || null,
+          }];
+        });
+      }
+
+      async function archiveRouteKnowledge(id) {
+        if (!confirm(`确认归档 ${id}？归档后不会进入发现路线推荐。`)) return;
+        await routeKnowledgeDeleteRequest(id, 'archive');
+      }
+
+      async function hardDeleteRouteKnowledge(id) {
+        const typed = prompt(`永久删除不可恢复。请输入路线 ID 确认：${id}`);
+        if (typed !== id) {
+          setRouteKnowledgeStatus('永久删除已取消。');
+          return;
+        }
+        await routeKnowledgeDeleteRequest(id, 'hard', typed);
+      }
+
+      async function routeKnowledgeDeleteRequest(id, mode, confirmValue = '') {
+        try {
+          const params = new URLSearchParams({ mode });
+          if (confirmValue) params.set('confirm', confirmValue);
+          const response = await fetch(`/api/v1/route-knowledge/${encodeURIComponent(id)}?${params.toString()}`, { method: 'DELETE' });
+          if (!response.ok) {
+            let detail = response.statusText;
+            try { detail = (await response.json()).detail || detail; } catch (_) {}
+            throw new Error(detail);
+          }
+          await loadRouteKnowledge();
+          setRouteKnowledgeStatus(mode === 'hard' ? '路线知识卡已永久删除。' : '路线知识卡已归档。', 'ok');
+        } catch (error) {
+          setRouteKnowledgeStatus(`操作失败：${error.message}`, 'fail');
+        }
+      }
+
+      async function restoreRouteKnowledge(id) {
+        try {
+          const response = await fetch(`/api/v1/route-knowledge/${encodeURIComponent(id)}`);
+          if (!response.ok) throw new Error('无法读取归档条目');
+          const record = await response.json();
+          record.status = 'active';
+          const updated = await fetch(`/api/v1/route-knowledge/${encodeURIComponent(id)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(record),
+          });
+          if (!updated.ok) throw new Error('恢复失败');
+          await loadRouteKnowledge();
+          setRouteKnowledgeStatus('路线知识卡已恢复为 active。', 'ok');
+        } catch (error) {
+          setRouteKnowledgeStatus(`恢复失败：${error.message}`, 'fail');
+        }
+      }
+
+      function closeRouteKnowledgeEditor() {
+        routeKnowledgeEditorBackdropEl.classList.remove('show');
+        routeKnowledgeEditorEl.innerHTML = '';
+      }
+
+      function listToLines(items) {
+        return (items || []).join('\n');
+      }
+
+      function linesToList(selector) {
+        const value = document.querySelector(selector).value || '';
+        const seen = new Set();
+        return value.split(/[\n,，]/).map(item => item.trim()).filter(item => {
+          if (!item || seen.has(item)) return false;
+          seen.add(item);
+          return true;
+        });
+      }
+
+      function optionalValue(selector) {
+        const value = document.querySelector(selector).value.trim();
+        return value || null;
+      }
+
+      function numberOrNull(selector) {
+        const value = document.querySelector(selector).value;
+        if (value === '') return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+      }
+
       // ---- Route Discovery ----
       const INTENT_LABELS = {
         destination_region: '地区', origin_city: '出发地', travel_date_or_season: '时间', trip_days: '天数',
@@ -3387,6 +4392,9 @@
       // ---- Boot ----
       checkHealth();
       loadMapConfig();
+      const isKnowledgeManagerPage = window.location.pathname === '/route-knowledge-manager';
+      activateModule(isKnowledgeManagerPage ? 'knowledge' : 'plan');
+      if (isKnowledgeManagerPage) loadRouteKnowledge();
       if (routeDiscoveryQueryEl) {
         routeDiscoveryQueryEl.addEventListener('input', () => {
           routeDiscoveryCountEl.textContent = `${routeDiscoveryQueryEl.value.length} / 1000`;
@@ -3397,6 +4405,16 @@
       }
       if (routeDiscoverySubmitBtn) routeDiscoverySubmitBtn.addEventListener('click', requestRouteRecommendations);
       if (routeFeaturedBtn) routeFeaturedBtn.addEventListener('click', loadFeaturedRoutes);
+      if (routeKnowledgeCreateBtn) routeKnowledgeCreateBtn.addEventListener('click', () => openRouteKnowledgeEditor());
+      if (routeKnowledgeImportBtn) routeKnowledgeImportBtn.addEventListener('click', openRouteImportWorkbench);
+      if (routeKnowledgeRefreshBtn) routeKnowledgeRefreshBtn.addEventListener('click', loadRouteKnowledge);
+      [routeKnowledgeQueryEl, routeKnowledgeProvinceFilterEl, routeKnowledgeCityFilterEl, routeKnowledgeSourceFilterEl].forEach(input => {
+        if (!input) return;
+        input.addEventListener('keydown', event => {
+          if (event.key === 'Enter') loadRouteKnowledge();
+        });
+      });
+      if (routeKnowledgeStatusFilterEl) routeKnowledgeStatusFilterEl.addEventListener('change', loadRouteKnowledge);
       document.querySelectorAll('.discovery-example:not(#route-featured)').forEach(button => {
         button.addEventListener('click', () => {
           routeDiscoveryQueryEl.value = button.textContent.replaceAll(' · ', '，');
@@ -3409,8 +4427,14 @@
           if (event.target === routeDetailBackdropEl) closeRouteDetail();
         });
       }
+      if (routeKnowledgeEditorBackdropEl) {
+        routeKnowledgeEditorBackdropEl.addEventListener('click', event => {
+          if (event.target === routeKnowledgeEditorBackdropEl) closeRouteKnowledgeEditor();
+        });
+      }
       document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && routeDetailBackdropEl?.classList.contains('show')) closeRouteDetail();
+        if (event.key === 'Escape' && routeKnowledgeEditorBackdropEl?.classList.contains('show')) closeRouteKnowledgeEditor();
       });
       setHistoryCollapsed(localStorage.getItem(HISTORY_COLLAPSED_KEY) === 'true');
       renderGuideHistory();
