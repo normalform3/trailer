@@ -1,90 +1,108 @@
 # 徒步攻略 Agent 项目状态
 
-## 功能概览
+更新时间：2026-06-24
 
-本项目是一个中国优先的徒步行前信息搜集 Agent 后端原型。当前 MVP 假设用户已经先在两步路等外部平台找好路线，并上传 KML 文件；系统优先围绕该轨迹做路线分析、风险识别、天气整理、住宿/交通/餐饮/补给信息搜集和待核实事项生成。
+## 当前定位
 
-路线规划能力保留为兜底：当用户没有上传 KML 时，系统可以基于目的地生成规划路线候选，但第一阶段不把“从零自动设计路线”作为核心卖点。
+Trailer 是一个中国优先的徒步行前决策 Agent。主链路仍然假设用户已经从两步路、奥维地图或其他外部平台拿到一条想走的路线，并上传 KML；系统围绕这条轨迹完成路线量化、天气筛选、周边 POI、交通方案、参考攻略补充和结构化攻略生成。
 
-核心流程由 LangGraph 编排：
+新增的“发现路线”模块用于前置辅助：当用户还没有明确路线时，系统可以先从本地路线知识库和公开网页中筛选有来源的候选路线名称。但它不生成可导航轨迹，也不把模型输出包装成真实热门路线；用户仍需要核对外部来源并获取 KML 后，进入主攻略链路。
+
+## 当前运行链路
+
+### 路线发现
+
+1. `RouteRecommendationService` 解析用户自然语言需求，提取地区、天数、体能、距离、爬升、景观和交通偏好。
+2. `SQLiteRouteKnowledgeRepository` 优先检索本地路线知识库，支持 FTS5、别名、标签、地区、编辑排序和状态过滤。
+3. 候选不足时，`BailianRouteDiscoveryProvider` 通过 DashScope Responses API 的 `web_search` 补充公开网页中的真实路线名称。
+4. `AmapRoutePlaceVerifier` 可用时做高德地点核验；未核验的联网候选至少需要两个独立网页来源。
+5. 最终只返回达到证据门槛的候选路线名称、来源、匹配理由、未知字段、核验项和告警。
+
+### 路线知识库管理
+
+1. `/route-knowledge-manager` 复用单页前端，打开同窗口的路线库管理视图。
+2. `/api/v1/route-knowledge` 支持查询、新增、编辑、归档和永久删除路线知识卡。
+3. 知识卡包含地区、难度、距离、耗时、爬升、季节、标签、交通备注、风险提示、官方状态、编辑排序和来源。
+4. `/api/v1/route-knowledge/import-jobs` 支持从公开 URL 或正文导入资料，抽取候选路线后由人工审核新增、合并或忽略。
+5. 运行时默认数据库为 `data/route_knowledge.sqlite3`，可通过 `ROUTE_KNOWLEDGE_DB` 覆盖。
+
+### KML 分析与攻略生成
 
 1. `ingest_route`：优先解析用户上传的 KML。
-2. `plan_route`：无可用 KML 时基于目的地生成规划路线候选。
-3. `analyze_route`：计算距离、海拔、累计爬升/下降、预计耗时和风险因子。
-4. `collect_research`：围绕路线整理天气、住宿、交通、餐饮、补给与应急、待核实事项。
-5. `compose_guide`：通过百炼 `qwen3.7-plus` 生成中文攻略摘要和建议，失败时降级为模板生成。
+2. `plan_route`：没有可用 KML 时才进入目的地规划兜底。
+3. `collect_weather`：高德 + Open-Meteo 组合查询天气，按实际可用日期窗口补齐。
+4. `analyze_route`：计算距离、海拔、累计爬升/下降、预计耗时和风险因子。
+5. `collect_research`：整理住宿、交通、餐饮、补给、应急和待核实事项。
+6. `plan_transport`：生成自驾、航班、铁路和接驳建议；在线数据不足时明确标注需人工核验。
+7. `compose_guide`：通过百炼 `qwen3.7-plus` 生成中文攻略，失败时降级为模板生成。
+8. `collect_reference`：读取用户提供的公开攻略链接或笔记，只作为经验补充和待核验项，不覆盖主攻略结论。
 
 ## 已完成内容
 
 - FastAPI 后端入口：
-  - `GET /` 最简测试前端。
+  - `GET /` 单页前端。
+  - `GET /route-knowledge-manager` 路线库管理深链。
+  - `GET /health`
+  - `GET /api/v1/config/map`
+  - `GET /api/v1/llm/health`
+  - `POST /api/v1/kml-preview`
+  - `GET /api/v1/weather-forecast`
   - `POST /api/v1/hiking-guides`
   - `POST /api/v1/hiking-guides/upload`
-  - `GET /health`
-- 最简测试前端：
-  - 支持目的地、出发城市、体能等级、偏好、路线描述输入。
-  - 支持 KML 文件上传。
-  - 支持调用 JSON API 或 KML 上传 API。
-  - 展示摘要、路线候选、距离、耗时、海拔、风险因子、行前信息搜集、建议、告警和数据来源。
-- 配置读取：
-  - 支持在 `config/settings.toml` 中填写高德、OpenRouteService、百炼/DashScope、SerpApi API Key。
-  - 支持系统环境变量，且系统环境变量优先于配置文件。
-- LangGraph Agent 编排。
+  - `POST /api/v1/hiking-guides/upload/stream`
+  - `POST /api/v1/route-recommendations`
+  - `POST /api/v1/route-recommendations/stream`
+  - `GET /api/v1/route-recommendations/featured`
+  - `GET /api/v1/route-knowledge`
+  - `POST /api/v1/route-knowledge`
+  - `GET /api/v1/route-knowledge/{route_id}`
+  - `PUT /api/v1/route-knowledge/{route_id}`
+  - `DELETE /api/v1/route-knowledge/{route_id}`
+  - `POST /api/v1/route-knowledge/import-jobs`
+  - `GET /api/v1/route-knowledge/import-jobs/{job_id}`
+  - `POST /api/v1/route-knowledge/import-jobs/{job_id}/apply`
+- 单页前端：
+  - 支持模块切换、路线发现、KML 上传、地图轨迹、海拔剖面、天气筛选、表单补充和攻略生成。
+  - 支持 SSE 展示路线发现与攻略生成的执行阶段、节点状态、跳过原因和降级告警。
+  - 支持左侧历史攻略恢复、收藏、置顶、折叠和清空。
+  - 支持同窗口路线库管理视图、路线知识卡表格、编辑抽屉和导入审核。
+- 路线发现：
+  - 本地路线知识库优先，百炼联网搜索补充。
+  - 高德地点核验、独立来源门槛、硬条件冲突过滤和证据质量排序。
+  - 全国精选和区域精选从同一份知识库生成。
 - KML 路线解析：
-  - 支持 `Placemark`、`LineString`、`name`、`description`、三维坐标。
-  - 支持多个 `Placemark`。
-  - 无效 KML 自动降级到规划路线。
-- 弹性路线来源优先级：
-  - 用户 KML。
-  - 用户路线文本 + 规划。
-  - API/兜底规划。
-- 行前信息搜集：
-  - 天气信息会从路线分析阶段的天气快照中暴露给用户。
-  - 住宿、交通、餐饮、补给/应急支持静态兜底清单。
-  - 配置 `AMAP_API_KEY` 后，会优先尝试高德 POI 查询轨迹起点附近的住宿、交通、餐饮和补给点。
-  - 配置 `SERPAPI_API_KEY` 后，会尝试通过 SerpApi Google Flights 查询出发城市到目的地周边机场的机票价格和耗时。
-  - 输出 `travel_research.next_steps`，提醒用户核对两步路最新评论、景区公告、住宿余房、返程末班和天气预警。
+  - 支持 `Placemark`、`LineString`、`gx:Track`、`name`、`description`、三维坐标和多段路线。
+  - 无效 KML 会返回明确错误或在 Agent 主链路中降级到规划路线。
 - 路线分析：
-  - 距离。
-  - 预计耗时。
-  - 最低/最高海拔。
-  - 累计爬升/下降。
-  - 高温、低温、降水、大风、高海拔、长距离、爬升较大等风险因子。
-- 数据 provider：
-  - 高德地点解析接口位。
-  - SerpApi Google Flights 机票搜索接口位。
-  - OpenRouteService 路线接口位。
-  - OpenTopoData 海拔接口位。
-  - Open-Meteo 天气接口位。
-  - 静态/模板兜底实现。
+  - 距离、预计耗时、最低/最高海拔、累计爬升/下降。
+  - 通过海拔反转阈值降低 GPS 抖动对累计爬升的影响。
+  - 输出高温、低温、降水、大风、高海拔、长距离、爬升较大等风险因子。
+- 行前信息搜集：
+  - 天气：高德近期预报 + Open-Meteo 多日补齐。
+  - POI：围绕路线采样点查询住宿、餐饮和补给，外部服务不可用时给出静态核验清单。
+  - 交通：高德驾车、SerpApi 航班、聚合 MCP 火车/航班只读查询和静态兜底建议。
+  - 参考攻略：公开链接和用户笔记进入独立补充区。
 - 百炼模型接入：
   - 默认模型：`qwen3.7-plus`。
-  - 默认环境变量：`DASHSCOPE_API_KEY`。
-  - 兼容环境变量：`BAILIAN_API_KEY`、`BAILIAN_MODEL`、`BAILIAN_BASE_URL`。
-  - 默认 Base URL：`https://dashscope.aliyuncs.com/compatible-mode/v1`。
-  - 模型不可用时不会中断流程，会降级为模板攻略。
+  - 支持 `DASHSCOPE_API_KEY`、`BAILIAN_API_KEY`、`BAILIAN_MODEL`、`BAILIAN_BASE_URL`。
+  - 模型不可用时不阻断主流程，会降级为模板攻略或返回稳定的公开错误。
 - DashScope 多模态接入：
-  - 通过官方 `dashscope.MultiModalConversation.call` 调用图片问答。
+  - 已封装 `dashscope.MultiModalConversation.call` 图片问答 Provider。
   - 默认 HTTP API URL：`https://dashscope.aliyuncs.com/api/v1`。
   - 冒烟脚本：`python scripts/test_dashscope_multimodal.py`。
 - 测试覆盖：
-  - KML 解析。
-  - 路线优先级。
-  - 路线分析。
-  - 规划兜底。
-  - 百炼响应解析与降级。
-  - DashScope 多模态调用参数与响应解析。
+  - 当前 `pytest -q` 结果：99 passed，1 warning。
+  - 覆盖 KML 解析、路线优先级、路线分析、天气 Provider、路线发现、路线知识库 CRUD、导入审核、Agent 分支、LLM 解析与降级、交通 Provider、流式 API 和配置读取。
 
-## 未完成内容
+## 未完成或当前边界
 
-- 尚未接入真实搜索 API 获取公开攻略网页。
-- 尚未实现住宿、餐饮、补给点、交通 POI 的多点聚合和排序，目前只支持轨迹起点附近高德 POI + 静态兜底。
-- 尚未实现真实 ORS 请求的集成测试，需要配置 `ORS_API_KEY` 后补充。
-- 尚未实现公交/驾车交通方案、返程末班时间和天气多日预报兜底。
-- 尚未实现 GPX、链接解析、截图/图片路线识别。
-- 尚未实现数据库、缓存、任务队列和用户会话。
-- 尚未实现前端地图可视化、轨迹折线预览和交互式路线编辑。
-- 尚未做生产级限流、重试、日志脱敏和监控。
+- 发现路线不生成 KML、GPX 或可导航轨迹，只返回可核验的路线名称和来源。
+- 路线知识库是本地 SQLite 治理层，尚未引入用户账户、权限、跨设备同步、任务队列或服务端攻略历史。
+- POI 排序仍偏行前辅助，尚未做到生产级全轨迹聚合、营业状态核验和实时余量判断。
+- 交通输出仍是行前建议，不做订票、付款、座位库存保证或实时导航。
+- OpenTopoData 海拔补全 Provider 已封装，但未默认接入主流程。
+- GPX、路线链接解析、截图/图片路线识别仍未接入主链路。
+- 尚未完成生产级限流、集中日志、指标监控、Docker Compose、CI/CD 和密钥轮换。
 
 ## 环境变量
 
@@ -94,17 +112,19 @@ export BAILIAN_MODEL=qwen3.7-plus
 export BAILIAN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 export DASHSCOPE_BASE_HTTP_API_URL=https://dashscope.aliyuncs.com/api/v1
 export AMAP_API_KEY=...
+export AMAP_WEB_KEY=...
 export ORS_API_KEY=...
 export SERPAPI_API_KEY=...
+export JUHE_MCP_TOKEN=...
+export ROUTE_KNOWLEDGE_DB=data/route_knowledge.sqlite3
 ```
 
-`DASHSCOPE_API_KEY` 是百炼官方文档推荐的环境变量。`BAILIAN_MODEL` 不配置时默认使用 `qwen3.7-plus`。
-
-也可以在 `config/settings.toml` 中填写对应配置。读取优先级为：系统环境变量优先，其次配置文件。
+`DASHSCOPE_API_KEY` 是百炼官方文档推荐的环境变量。`BAILIAN_MODEL` 不配置时默认使用 `qwen3.7-plus`。`JUHE_MCP_TOKEN` 只从环境变量读取，当前仅允许只读查询。也可以在 `config/settings.toml` 中填写对应配置；读取优先级为系统环境变量优先，其次配置文件。
 
 ## 当前边界
 
-- 输出是行前信息搜集和规划建议，不是专业导航、景区公告或救援依据。
-- API 规划路线会明确标注为规划路线，不会包装成社区热门路线。
+- Trailer 输出的是行前信息搜集和规划建议，不是专业导航、景区公告、天气预警或救援依据。
+- 用户提供 KML 时，KML 轨迹始终是主事实来源。
+- API 规划路线和发现路线都会明确标注为候选或待核验内容，不包装成真实轨迹或官方推荐。
+- 用户提供的攻略链接和笔记是补充材料，不改写主攻略结论。
 - 不直接抓取两步路等非公开社区路线接口。
-- 第一版路线文件只支持 KML。
